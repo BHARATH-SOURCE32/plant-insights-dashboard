@@ -2,80 +2,95 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @layer base {
   :root {
-    /* Navy Trust palette */
-    --background: 210 33% 98%;
-    --foreground: 222 60% 14%;
+    /* ── Aditya Birla Group brand palette ─────────────────────────────
+       Deep navy #0D1B3E · Brand red #C8102E · Gold/amber #B8860B
+    ──────────────────────────────────────────────────────────────── */
+    --background: 0 0% 96%;
+    --foreground: 240 27% 14%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 60% 14%;
+    --card-foreground: 240 27% 14%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 60% 14%;
+    --popover-foreground: 240 27% 14%;
 
-    --primary: 222 60% 14%;            /* deep navy #0f1b3d */
-    --primary-foreground: 210 33% 98%;
-    --primary-glow: 213 47% 43%;       /* steel blue #3b6fa0 */
+    --primary: 350 87% 43%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 350 87% 34%;
 
-    --secondary: 213 32% 92%;
-    --secondary-foreground: 222 60% 14%;
+    --secondary: 221 68% 92%;
+    --secondary-foreground: 221 68% 15%;
 
-    --muted: 213 25% 94%;
-    --muted-foreground: 215 20% 40%;
+    --muted: 0 0% 94%;
+    --muted-foreground: 220 9% 43%;
 
-    --accent: 213 47% 43%;
-    --accent-foreground: 210 33% 98%;
+    --accent: 42 88% 38%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 50%;
+    --destructive: 0 72% 57%;
     --destructive-foreground: 0 0% 100%;
 
     --success: 142 60% 38%;
-    --warning: 38 92% 50%;
+    --warning: 42 88% 38%;
+    --gold: 42 88% 38%;
 
-    --border: 214 28% 88%;
-    --input: 214 28% 88%;
-    --ring: 213 47% 43%;
+    --border: 220 13% 83%;
+    --input: 220 13% 83%;
+    --ring: 350 87% 43%;
 
     --radius: 0.625rem;
 
-    --gradient-hero: linear-gradient(135deg, hsl(222 60% 14%), hsl(213 47% 43%));
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(213 25% 97%));
-    --shadow-elegant: 0 10px 30px -12px hsl(222 60% 14% / 0.18);
-    --shadow-card: 0 1px 3px hsl(222 60% 14% / 0.06), 0 1px 2px hsl(222 60% 14% / 0.04);
+    /* Chart colours */
+    --chart-1: 350 87% 43%;
+    --chart-2: 221 68% 15%;
+    --chart-3: 42 88% 38%;
+    --chart-4: 198 60% 40%;
+    --chart-5: 270 55% 55%;
 
-    --sidebar-background: 222 60% 14%;
-    --sidebar-foreground: 210 33% 98%;
-    --sidebar-primary: 213 47% 43%;
+    --gradient-hero: linear-gradient(135deg, hsl(221 68% 15%), hsl(350 87% 43%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(0 0% 97%));
+    --gradient-brand: linear-gradient(135deg, hsl(221 68% 15%), hsl(221 68% 25%));
+    --gradient-accent: linear-gradient(135deg, hsl(350 87% 43%), hsl(350 87% 55%));
+    --shadow-elegant: 0 10px 30px -12px hsl(221 68% 15% / 0.18);
+    --shadow-card: 0 1px 3px hsl(221 68% 15% / 0.06), 0 1px 2px hsl(221 68% 15% / 0.04);
+    --grid-line: hsl(220 13% 83% / 0.6);
+
+    /* Sidebar */
+    --sidebar-background: 221 68% 15%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 350 87% 43%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 50% 20%;
-    --sidebar-accent-foreground: 210 33% 98%;
-    --sidebar-border: 222 40% 22%;
-    --sidebar-ring: 213 47% 43%;
+    --sidebar-accent: 350 87% 43%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 221 55% 22%;
+    --sidebar-ring: 350 87% 43%;
   }
 
   .dark {
-    --background: 222 60% 8%;
-    --foreground: 210 33% 98%;
-    --card: 222 50% 12%;
-    --card-foreground: 210 33% 98%;
-    --popover: 222 50% 12%;
-    --popover-foreground: 210 33% 98%;
-    --primary: 213 47% 55%;
-    --primary-foreground: 222 60% 8%;
-    --secondary: 222 40% 18%;
-    --secondary-foreground: 210 33% 98%;
-    --muted: 222 40% 18%;
-    --muted-foreground: 213 20% 70%;
-    --accent: 213 47% 43%;
-    --accent-foreground: 210 33% 98%;
+    --background: 221 68% 8%;
+    --foreground: 0 0% 96%;
+    --card: 221 55% 12%;
+    --card-foreground: 0 0% 96%;
+    --popover: 221 55% 12%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 350 87% 50%;
+    --primary-foreground: 221 68% 8%;
+    --secondary: 221 50% 18%;
+    --secondary-foreground: 0 0% 96%;
+    --muted: 221 50% 18%;
+    --muted-foreground: 220 9% 65%;
+    --accent: 42 80% 45%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 62% 45%;
-    --destructive-foreground: 210 33% 98%;
-    --border: 222 40% 22%;
-    --input: 222 40% 22%;
-    --ring: 213 47% 55%;
+    --destructive-foreground: 0 0% 96%;
+    --border: 221 45% 22%;
+    --input: 221 45% 22%;
+    --ring: 350 87% 50%;
+    --gold: 42 80% 45%;
   }
 }
 
@@ -93,8 +108,36 @@
 }
 
 @layer utilities {
-  .gradient-hero { background: var(--gradient-hero); }
-  .gradient-card { background: var(--gradient-card); }
-  .shadow-elegant { box-shadow: var(--shadow-elegant); }
-  .shadow-card { box-shadow: var(--shadow-card); }
+  .gradient-hero   { background: var(--gradient-hero); }
+  .gradient-card   { background: var(--gradient-card); }
+  .brand-gradient  { background: var(--gradient-brand); }
+  .accent-gradient { background: var(--gradient-accent); }
+  .shadow-elegant  { box-shadow: var(--shadow-elegant); }
+  .shadow-card     { box-shadow: var(--shadow-card); }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 36px 36px;
+  }
+
+  .num {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  .text-navy  { color: hsl(221 68% 15%); }
+  .text-brand { color: hsl(var(--primary)); }
+  .text-gold  { color: hsl(var(--gold)); }
+  .border-gold { border-color: hsl(var(--gold)); }
+}
+
+/* Brand focus ring */
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: #C8102E !important;
+  box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.2) !important;
 }

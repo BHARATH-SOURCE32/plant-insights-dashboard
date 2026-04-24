@@ -2,7 +2,14 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { FlaskConical, LayoutDashboard, Database, Calculator, LogOut } from "lucide-react";
+import {
+  LayoutDashboard,
+  Database,
+  Calculator,
+  LogOut,
+  CircleUserRound,
+  Activity,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const nav = [
@@ -11,7 +18,17 @@ const nav = [
   { to: "/recipe", label: "Recipe Calculator", icon: Calculator },
 ];
 
-export default function AppShell({ children }: { children: React.ReactNode }) {
+interface AppShellProps {
+  children: React.ReactNode;
+  /** Page title shown in the sticky top-bar */
+  title?: string;
+  /** Optional subtitle beneath the title */
+  subtitle?: string;
+  /** Action buttons rendered in the top-bar (right side) */
+  actions?: React.ReactNode;
+}
+
+export default function AppShell({ children, title, subtitle, actions }: AppShellProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -23,45 +40,90 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen flex bg-background">
-      <aside className="w-64 bg-sidebar text-sidebar-foreground flex flex-col p-4 sticky top-0 h-screen">
-        <div className="flex items-center gap-2 mb-8 px-2">
-          <div className="h-9 w-9 rounded-lg bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center">
-            <FlaskConical className="h-5 w-5" />
+      {/* ── Sidebar ───────────────────────────────────────────────── */}
+      <aside className="w-64 bg-sidebar text-sidebar-foreground flex flex-col sticky top-0 h-screen shrink-0">
+        {/* Logo / brand */}
+        <div className="h-16 px-6 flex items-center gap-3 border-b border-sidebar-border">
+          <div className="h-16 w-16 rounded-lg flex items-center justify-center text-white shadow-md">
+            <img src="public/aditya.png" alt="Aditya birla" />
           </div>
-          <div>
-            <div className="font-semibold tracking-tight">Plant System</div>
-            <div className="text-xs text-sidebar-foreground/60">Recipe & Quality</div>
+          <div className="flex flex-col leading-tight">
+            {/* <span className="text-sm font-bold tracking-wide">ADITYA BIRLA</span> */}
+            <span className="text-[14px] uppercase tracking-[0.18em] text-white/60">
+              ADITYA BIRLA
+            </span>
           </div>
         </div>
-        <nav className="flex-1 space-y-1">
+
+        {/* Navigation */}
+        <nav className="flex-1 p-3 space-y-1">
           {nav.map((n) => {
             const Icon = n.icon;
             const active = location.pathname === n.to;
             return (
-              <Link key={n.to} to={n.to}
+              <Link
+                key={n.to}
+                to={n.to}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                  active ? "bg-sidebar-accent text-sidebar-accent-foreground" : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50"
-                )}>
+                  "group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+                  active
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-md"
+                    : "text-white/75 hover:bg-white/10 hover:text-white",
+                )}
+              >
                 <Icon className="h-4 w-4" />
                 {n.label}
               </Link>
             );
           })}
         </nav>
-        <div className="border-t border-sidebar-border pt-4">
-          <div className="px-2 mb-2">
-            <div className="text-xs text-sidebar-foreground/60">Signed in as</div>
-            <div className="text-sm truncate">{user?.email}</div>
+
+        {/* Footer – system status + user info */}
+        <div className="p-3 border-t border-sidebar-border space-y-3">
+          <div className="flex items-center gap-2 px-1">
+            <CircleUserRound className="h-4 w-4 text-white/60 shrink-0" />
+            <span className="text-xs text-white/80 truncate">
+              {user?.user_metadata?.full_name ?? user?.email}
+            </span>
           </div>
-          <Button variant="ghost" size="sm" onClick={signOut} className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent">
-            <LogOut className="h-4 w-4 mr-2" /> Sign out
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={signOut}
+            className="w-full justify-start text-white/75 hover:text-white hover:bg-white/10"
+          >
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign out
           </Button>
         </div>
       </aside>
-      <main className="flex-1 overflow-auto">
-        <div className="max-w-7xl mx-auto p-6 lg:p-8">{children}</div>
-      </main>
+
+      {/* ── Main content ──────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Sticky top-bar – only rendered when a title is provided */}
+        {(title || actions) && (
+          <header className="h-16 px-6 border-b border-border flex items-center justify-between bg-card/90 backdrop-blur-sm sticky top-0 z-20 shadow-card">
+            <div>
+              {title && (
+                <h1 className="text-lg font-bold tracking-tight text-navy">{title}</h1>
+              )}
+              {subtitle && (
+                <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
+              )}
+            </div>
+            {actions && (
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                {actions}
+              </div>
+            )}
+          </header>
+        )}
+
+        <main className="flex-1 overflow-auto p-6 lg:p-8">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

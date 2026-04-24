@@ -13,15 +13,15 @@ export interface RecipeInputs {
   denierFilament: string;
   cfOnlyCf: string;
   sduNo: string;
-  productionToBeDoneKg: number;  // J2 in sheet (in T units, e.g. 2 = 2000 kg)
-  batchVolume: number;            // L2 (litres)
+  productionToBeDoneKg: number; // J2 in sheet (in T units, e.g. 2 = 2000 kg)
+  batchVolume: number; // L2 (litres)
   mcNo: string;
-  noOfPositions: number;          // N2
-  cellulose: number;              // O2 (%)
-  pumpThrow: number;              // B9 (gms / 5 min)
-  rateCcMin: number;              // B10 (cc/min) — measured input, not derived
-  productionPerDay: number;       // T-table (kg/day) for the denier
-  expectedQuality: number;        // U-table (%) for the denier
+  noOfPositions: number; // N2
+  cellulose: number; // O2 (%)
+  pumpThrow: number; // B9 (gms / 5 min)
+  rateCcMin: number; // B10 (cc/min) — measured input, not derived
+  productionPerDay: number; // T-table (kg/day) for the denier
+  expectedQuality: number; // U-table (%) for the denier
   pigments: Pigment[];
 }
 
@@ -38,12 +38,15 @@ export interface RecipeOutputs {
   waterQty: number;
   totalQty: number;
   pigmentQuantities: { name: string; qty: number }[]; // kg per batch
-  pigmentTotalKg: { name: string; qty: number }[];    // kg over full run
+  pigmentTotalKg: { name: string; qty: number }[]; // kg over full run
 }
 
 export function calculateRecipe(input: RecipeInputs): RecipeOutputs {
   // B8 = SUM(pigment %)
-  const totalShadeLoading = input.pigments.reduce((s, p) => s + (p.percent || 0), 0);
+  const totalShadeLoading = input.pigments.reduce(
+    (s, p) => s + (p.percent || 0),
+    0,
+  );
 
   // B11 = B10 * 60 / 1000  (cc/min → lit/hr)
   const rateLitHr = (input.rateCcMin * 60) / 1000;
@@ -54,18 +57,24 @@ export function calculateRecipe(input: RecipeInputs): RecipeOutputs {
   // B13 = J2 * 1000 / (T * U / 100)
   // production_kg * 1000 / (production_per_day * expected_quality / 100)
   const denom = (input.productionPerDay * input.expectedQuality) / 100;
-  const daysRequired = denom > 0 ? (input.productionToBeDoneKg * 1000) / denom : 0;
+  const daysRequired =
+    denom > 0 ? (input.productionToBeDoneKg * 1000) / denom : 0;
 
   // B14 = B12 * K2 + 25  → K2 in sheet was "days" rounded; we use computed daysRequired
-  const totalConsumption = consumptionPerDay * daysRequired + 25;
+  const daysRounded = Math.ceil(daysRequired);
+  const totalConsumption = consumptionPerDay * daysRounded + 25;
 
   // B16 = B14 / B15
-  const totalBatches = input.batchVolume > 0 ? totalConsumption / input.batchVolume : 0;
+  const totalBatches =
+    input.batchVolume > 0 ? totalConsumption / input.batchVolume : 0;
 
   // B17 = (132 * O2 / 500) * B8 * B9 / B10
   const pigmentConcFull =
     input.rateCcMin > 0
-      ? ((132 * input.cellulose) / 500) * totalShadeLoading * input.pumpThrow / input.rateCcMin
+      ? (((132 * input.cellulose) / 500) *
+          totalShadeLoading *
+          input.pumpThrow) /
+        input.rateCcMin
       : 0;
   const pigmentConcHalf = pigmentConcFull / 2;
 
@@ -74,7 +83,8 @@ export function calculateRecipe(input: RecipeInputs): RecipeOutputs {
     name: p.name,
     qty:
       totalShadeLoading > 0
-        ? (pigmentConcFull * input.batchVolume / 100) * (p.percent / totalShadeLoading)
+        ? ((pigmentConcFull * input.batchVolume) / 100) *
+          (p.percent / totalShadeLoading)
         : 0,
   }));
 
@@ -104,8 +114,14 @@ export function calculateRecipe(input: RecipeInputs): RecipeOutputs {
     pigmentConcHalf: round(pigmentConcHalf, 2),
     waterQty: round(waterQty, 3),
     totalQty: round(totalQty, 3),
-    pigmentQuantities: pigmentQuantities.map((p) => ({ name: p.name, qty: round(p.qty, 3) })),
-    pigmentTotalKg: pigmentTotalKg.map((p) => ({ name: p.name, qty: round(p.qty, 3) })),
+    pigmentQuantities: pigmentQuantities.map((p) => ({
+      name: p.name,
+      qty: round(p.qty, 3),
+    })),
+    pigmentTotalKg: pigmentTotalKg.map((p) => ({
+      name: p.name,
+      qty: round(p.qty, 3),
+    })),
   };
 }
 
