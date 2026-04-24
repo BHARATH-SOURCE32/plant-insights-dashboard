@@ -48,17 +48,28 @@ export default function Auth() {
     <div className="min-h-screen flex items-center justify-center gradient-hero p-4">
       <Card className="w-full max-w-md shadow-elegant">
         <CardHeader className="text-center">
-          <div className="mx-auto h-12 w-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center mb-2">
-            <FlaskConical className="h-6 w-6" />
+          <div className="mx-auto h-16 w-20 rounded-xl  flex items-center justify-center">
+            {/* <FlaskConical className="h-6 w-6" /> */}
+            <img src="/aditya.png" alt="aditya birla" />
           </div>
-          <CardTitle className="text-2xl">Plant Recipe System</CardTitle>
+          <CardTitle className="text-3xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-[#C8102E] to-[#B8860B]">ADITYA BIRLA</CardTitle>
           <CardDescription>Sign in to access quality records & recipe calculator</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="signin">Sign In</TabsTrigger>
-              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+              <TabsTrigger 
+                value="signin" 
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                Sign In
+              </TabsTrigger>
+              <TabsTrigger 
+                value="signup" 
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+              >
+                Sign Up
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4 mt-4">

@@ -45,7 +45,7 @@ export default function AppShell({ children, title, subtitle, actions }: AppShel
         {/* Logo / brand */}
         <div className="h-16 px-6 flex items-center gap-3 border-b border-sidebar-border">
           <div className="h-16 w-16 rounded-lg flex items-center justify-center text-white shadow-md">
-            <img src="public/aditya.png" alt="Aditya birla" />
+            <img src="/aditya.png" alt="Aditya birla" />
           </div>
           <div className="flex flex-col leading-tight">
             {/* <span className="text-sm font-bold tracking-wide">ADITYA BIRLA</span> */}
