@@ -159,14 +159,22 @@ export default function Recipe() {
                   <Out k="Total Batches" v={outputs.totalBatches} />
                   <Out k="Pigment Conc. Full M/C" v={`${outputs.pigmentConcFull} g/L`} />
                   <Out k="Pigment Conc. Half M/C" v={`${outputs.pigmentConcHalf} g/L`} />
-                  <Out k="Water Qty / Batch" v={`${outputs.waterQty} ml`} />
-                  <Out k="Total Qty / Batch" v={`${outputs.totalQty} ml`} />
+                  <Out k="Water Qty / Batch" v={`${outputs.waterQty} kg`} />
+                  <Out k="Total Qty / Batch" v={`${outputs.totalQty} kg`} />
                 </div>
                 <div className="mt-4 pt-4 border-t">
-                  <Label className="text-xs uppercase text-muted-foreground">Pigment Quantities (per batch)</Label>
+                  <Label className="text-xs uppercase text-muted-foreground">Pigment Qty / Batch</Label>
                   {outputs.pigmentQuantities.map((p, i) => (
                     <div key={i} className="flex justify-between text-sm mt-1">
-                      <span>{p.name}</span><span className="font-mono">{p.qty} g</span>
+                      <span>{p.name}</span><span className="font-mono">{p.qty} kg</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 pt-4 border-t">
+                  <Label className="text-xs uppercase text-muted-foreground">Pigment Consumption (full run)</Label>
+                  {outputs.pigmentTotalKg.map((p, i) => (
+                    <div key={i} className="flex justify-between text-sm mt-1">
+                      <span>{p.name}</span><span className="font-mono">{p.qty} kg</span>
                     </div>
                   ))}
                 </div>
