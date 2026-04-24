@@ -25,7 +25,7 @@ export default function Recipe() {
   const [denierFilament, setDenierFilament] = useState("110/48");
   const [cfOnlyCf, setCfOnlyCf] = useState("CF");
   const [sduNo, setSduNo] = useState("");
-  const [productionToBeDoneKg, setProduction] = useState(2000);
+  const [productionToBeDoneKg, setProduction] = useState(2);
   const [batchVolume, setBatchVolume] = useState(200);
   const [mcNo, setMcNo] = useState("5");
   const [noOfPositions, setPositions] = useState(132);
@@ -108,7 +108,7 @@ export default function Recipe() {
               <Field label="Denier / Filament"><Input value={denierFilament} onChange={(e) => setDenierFilament(e.target.value)} /></Field>
               <Field label="CF / Only CF"><Input value={cfOnlyCf} onChange={(e) => setCfOnlyCf(e.target.value)} /></Field>
               <Field label="SDU No"><Input value={sduNo} onChange={(e) => setSduNo(e.target.value)} /></Field>
-              <Field label="Production To Be Done (Kg)"><Input type="number" value={productionToBeDoneKg} onChange={(e) => setProduction(Number(e.target.value))} /></Field>
+              <Field label="Production To Be Done (Tons)"><Input type="number" step="0.1" value={productionToBeDoneKg} onChange={(e) => setProduction(Number(e.target.value))} /></Field>
               <Field label="Batch Volume (L)"><Input type="number" value={batchVolume} onChange={(e) => setBatchVolume(Number(e.target.value))} /></Field>
               <Field label="M/C No"><Input value={mcNo} onChange={(e) => setMcNo(e.target.value)} /></Field>
               <Field label="No of Positions"><Input type="number" value={noOfPositions} onChange={(e) => setPositions(Number(e.target.value))} /></Field>
