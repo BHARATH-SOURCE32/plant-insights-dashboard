@@ -314,6 +314,51 @@ export function exportRecipeToPDF(
   doc.save(filename);
 }
 
+export function exportRecipeToExcel(
+  inputs: Record<string, any>,
+  outputs: Record<string, any>,
+  filename = "plantops-recipe.xlsx"
+) {
+  const wb = XLSX.utils.book_new();
+
+  const inputRows = [
+    { Metric: "Batch Volume (L)", Value: inputs.batchVolume },
+    { Metric: "Pump Rate (L/min)", Value: inputs.pumpRate },
+    { Metric: "Concentration", Value: `${inputs.concentration} Machine (${inputs.concFullPct}%)` },
+    { Metric: "Total Shade Loading (%)", Value: inputs.totalShadeLoading },
+    { Metric: "Black AV (%)", Value: inputs.blackAV },
+    { Metric: "Red GVD (%)", Value: inputs.redGVD },
+    { Metric: "Orange GRVD (%)", Value: inputs.orangeGRVD },
+    { Metric: "Target Shade (%)", Value: inputs.targetShade },
+  ];
+
+  const outputRows = [
+    { Metric: "Black AV Volume (L)", Value: outputs.blackAVVol },
+    { Metric: "Red GVD Volume (L)", Value: outputs.redGVDVol },
+    { Metric: "Orange GRVD Volume (L)", Value: outputs.orangeGRVDVol },
+    { Metric: "Total Shade Volume (L)", Value: outputs.shadeVolume },
+    { Metric: "Achievement (%)", Value: outputs.achievement },
+    { Metric: "Performance (%)", Value: outputs.performance },
+    { Metric: "Estimated BF (%)", Value: outputs.estimatedBf },
+    { Metric: "Cycle Time (min)", Value: outputs.cycleMin },
+  ];
+
+  const combinedRows = [
+    { Metric: "--- INPUTS ---", Value: "" },
+    ...inputRows,
+    { Metric: "", Value: "" },
+    { Metric: "--- OUTPUTS ---", Value: "" },
+    ...outputRows
+  ];
+
+  const ws = XLSX.utils.json_to_sheet(combinedRows);
+  
+  ws["!cols"] = [{ wch: 25 }, { wch: 20 }];
+  
+  XLSX.utils.book_append_sheet(wb, ws, "Recipe Calculation");
+  XLSX.writeFile(wb, filename);
+}
+
 export function exportToPDF(
   rows: QualityRecord[],
   filename = "plantops-report.pdf",

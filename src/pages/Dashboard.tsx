@@ -220,14 +220,14 @@ export default function Dashboard() {
   }, [filtered]);
 
   // 3. Pump Rate vs BF (scatter)
-  const pumpVsBf = useMemo(
-    () =>
-      filtered.map((r) => ({
-        pt: Number(r.rate_lpm) || 0,
-        bf: Number(r.bf) || 0,
-      })),
-    [filtered],
-  );
+  // const pumpVsBf = useMemo(
+  //   () =>
+  //     filtered.map((r) => ({
+  //       pt: Number(r.rate_lpm) || 0,
+  //       bf: Number(r.bf) || 0,
+  //     })),
+  //   [filtered],
+  // );
 
   // 4. Production Trend — avg shade_variation per date (line)
   const productionTrend = useMemo(() => {
@@ -301,7 +301,7 @@ export default function Dashboard() {
       {/* Header */}
       <header className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">
-          Operations Dashboard
+          Dashboard
         </h1>
         <p className="text-muted-foreground text-sm mt-0.5">
           Real-time plant production &amp; recipe analytics
