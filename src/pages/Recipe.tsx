@@ -61,7 +61,7 @@ export default function Recipe() {
     denier_filament: denierFilament, cf_only_cf: cfOnlyCf, sdu_no: sduNo,
     production_to_be_done_kg: productionToBeDoneKg, batch_volume: batchVolume,
     mc_no: mcNo, no_of_positions: noOfPositions, cellulose, pump_throw: pumpThrow,
-    pigments: pigments.filter((p) => p.name.trim()),
+    pigments: pigments.filter((p) => p.name.trim()) as any,
     total_shade_loading: out.totalShadeLoading,
     rate_cc_min: out.rateCcMin, rate_lit_hr: out.rateLitHr,
     consumption_per_day: out.consumptionPerDay, days_required: out.daysRequired,
