@@ -59,7 +59,7 @@ export default function Quality() {
       const records = json.map((r) => {
         const rec: any = { user_id: user.id };
         Object.entries(r).forEach(([k, v]) => {
-          const key = FIELD_MAP[k.trim()];
+          const key = FIELD_MAP[k.trim().replace(/\s+/g, " ")];
           if (key) rec[key] = v;
         });
         if (rec.day && rec.month && rec.year) {

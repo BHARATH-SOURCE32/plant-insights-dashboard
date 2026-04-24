@@ -25,12 +25,15 @@ export default function Recipe() {
   const [denierFilament, setDenierFilament] = useState("110/48");
   const [cfOnlyCf, setCfOnlyCf] = useState("CF");
   const [sduNo, setSduNo] = useState("");
-  const [productionToBeDoneKg, setProduction] = useState(1000);
+  const [productionToBeDoneKg, setProduction] = useState(2);
   const [batchVolume, setBatchVolume] = useState(200);
-  const [mcNo, setMcNo] = useState("");
-  const [noOfPositions, setPositions] = useState(64);
-  const [cellulose, setCellulose] = useState(8);
-  const [pumpThrow, setPumpThrow] = useState(2.5);
+  const [mcNo, setMcNo] = useState("5");
+  const [noOfPositions, setPositions] = useState(132);
+  const [cellulose, setCellulose] = useState(8.8);
+  const [pumpThrow, setPumpThrow] = useState(88);
+  const [rateCcMin, setRateCcMin] = useState(77);
+  const [productionPerDay, setProductionPerDay] = useState(1000);
+  const [expectedQuality, setExpectedQuality] = useState(30);
   const [pigments, setPigments] = useState<Pigment[]>(DEFAULT_PIGMENTS);
   const [outputs, setOutputs] = useState<RecipeOutputs | null>(null);
   const [savedRecipe, setSavedRecipe] = useState<any>(null);
@@ -48,6 +51,7 @@ export default function Recipe() {
     const out = calculateRecipe({
       shadeName, customerName, shadeNo, denierFilament, cfOnlyCf, sduNo,
       productionToBeDoneKg, batchVolume, mcNo, noOfPositions, cellulose, pumpThrow,
+      rateCcMin, productionPerDay, expectedQuality,
       pigments: pigments.filter((p) => p.name.trim()),
     });
     setOutputs(out);
@@ -104,12 +108,15 @@ export default function Recipe() {
               <Field label="Denier / Filament"><Input value={denierFilament} onChange={(e) => setDenierFilament(e.target.value)} /></Field>
               <Field label="CF / Only CF"><Input value={cfOnlyCf} onChange={(e) => setCfOnlyCf(e.target.value)} /></Field>
               <Field label="SDU No"><Input value={sduNo} onChange={(e) => setSduNo(e.target.value)} /></Field>
-              <Field label="Production To Be Done (Kg)"><Input type="number" value={productionToBeDoneKg} onChange={(e) => setProduction(Number(e.target.value))} /></Field>
+              <Field label="Production To Be Done (Tons)"><Input type="number" step="0.1" value={productionToBeDoneKg} onChange={(e) => setProduction(Number(e.target.value))} /></Field>
               <Field label="Batch Volume (L)"><Input type="number" value={batchVolume} onChange={(e) => setBatchVolume(Number(e.target.value))} /></Field>
               <Field label="M/C No"><Input value={mcNo} onChange={(e) => setMcNo(e.target.value)} /></Field>
               <Field label="No of Positions"><Input type="number" value={noOfPositions} onChange={(e) => setPositions(Number(e.target.value))} /></Field>
               <Field label="Cellulose %"><Input type="number" step="0.1" value={cellulose} onChange={(e) => setCellulose(Number(e.target.value))} /></Field>
-              <Field label="Pump Throw (cc/stroke)"><Input type="number" step="0.1" value={pumpThrow} onChange={(e) => setPumpThrow(Number(e.target.value))} /></Field>
+              <Field label="Pump Throw (gms / 5 min)"><Input type="number" step="0.1" value={pumpThrow} onChange={(e) => setPumpThrow(Number(e.target.value))} /></Field>
+              <Field label="Rate (cc/min)"><Input type="number" step="0.1" value={rateCcMin} onChange={(e) => setRateCcMin(Number(e.target.value))} /></Field>
+              <Field label="Production / Day (kg)"><Input type="number" step="1" value={productionPerDay} onChange={(e) => setProductionPerDay(Number(e.target.value))} /></Field>
+              <Field label="Expected Quality (%)"><Input type="number" step="1" value={expectedQuality} onChange={(e) => setExpectedQuality(Number(e.target.value))} /></Field>
             </div>
 
             <div>
@@ -152,14 +159,22 @@ export default function Recipe() {
                   <Out k="Total Batches" v={outputs.totalBatches} />
                   <Out k="Pigment Conc. Full M/C" v={`${outputs.pigmentConcFull} g/L`} />
                   <Out k="Pigment Conc. Half M/C" v={`${outputs.pigmentConcHalf} g/L`} />
-                  <Out k="Water Qty / Batch" v={`${outputs.waterQty} ml`} />
-                  <Out k="Total Qty / Batch" v={`${outputs.totalQty} ml`} />
+                  <Out k="Water Qty / Batch" v={`${outputs.waterQty} kg`} />
+                  <Out k="Total Qty / Batch" v={`${outputs.totalQty} kg`} />
                 </div>
                 <div className="mt-4 pt-4 border-t">
-                  <Label className="text-xs uppercase text-muted-foreground">Pigment Quantities (per batch)</Label>
+                  <Label className="text-xs uppercase text-muted-foreground">Pigment Qty / Batch</Label>
                   {outputs.pigmentQuantities.map((p, i) => (
                     <div key={i} className="flex justify-between text-sm mt-1">
-                      <span>{p.name}</span><span className="font-mono">{p.qty} g</span>
+                      <span>{p.name}</span><span className="font-mono">{p.qty} kg</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 pt-4 border-t">
+                  <Label className="text-xs uppercase text-muted-foreground">Pigment Consumption (full run)</Label>
+                  {outputs.pigmentTotalKg.map((p, i) => (
+                    <div key={i} className="flex justify-between text-sm mt-1">
+                      <span>{p.name}</span><span className="font-mono">{p.qty} kg</span>
                     </div>
                   ))}
                 </div>
