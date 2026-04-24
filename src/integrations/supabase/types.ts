@@ -14,16 +14,225 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      quality_records: {
+        Row: {
+          bf: number | null
+          colour: string | null
+          created_at: string
+          day: number | null
+          denier: string | null
+          dispergent_used: string | null
+          id: string
+          mc_no: string | null
+          month: number | null
+          party_name: string | null
+          pt: number | null
+          quality: string | null
+          rate_litres_min: number | null
+          record_date: string | null
+          sd_unit_no: string | null
+          shade_no: string | null
+          shade_variation: number | null
+          total_shade_pct: number | null
+          type_of_mixer: string | null
+          user_id: string
+          year: number | null
+        }
+        Insert: {
+          bf?: number | null
+          colour?: string | null
+          created_at?: string
+          day?: number | null
+          denier?: string | null
+          dispergent_used?: string | null
+          id?: string
+          mc_no?: string | null
+          month?: number | null
+          party_name?: string | null
+          pt?: number | null
+          quality?: string | null
+          rate_litres_min?: number | null
+          record_date?: string | null
+          sd_unit_no?: string | null
+          shade_no?: string | null
+          shade_variation?: number | null
+          total_shade_pct?: number | null
+          type_of_mixer?: string | null
+          user_id: string
+          year?: number | null
+        }
+        Update: {
+          bf?: number | null
+          colour?: string | null
+          created_at?: string
+          day?: number | null
+          denier?: string | null
+          dispergent_used?: string | null
+          id?: string
+          mc_no?: string | null
+          month?: number | null
+          party_name?: string | null
+          pt?: number | null
+          quality?: string | null
+          rate_litres_min?: number | null
+          record_date?: string | null
+          sd_unit_no?: string | null
+          shade_no?: string | null
+          shade_variation?: number | null
+          total_shade_pct?: number | null
+          type_of_mixer?: string | null
+          user_id?: string
+          year?: number | null
+        }
+        Relationships: []
+      }
+      recipes: {
+        Row: {
+          batch_volume: number | null
+          cellulose: number | null
+          cf_only_cf: string | null
+          consumption_per_day: number | null
+          created_at: string
+          customer_name: string | null
+          days_required: number | null
+          denier_filament: string | null
+          id: string
+          mc_no: string | null
+          no_of_positions: number | null
+          pigment_conc_full: number | null
+          pigment_conc_half: number | null
+          pigments: Json | null
+          production_to_be_done_kg: number | null
+          pump_throw: number | null
+          rate_cc_min: number | null
+          rate_lit_hr: number | null
+          results: Json | null
+          sdu_no: string | null
+          shade_name: string
+          shade_no: string | null
+          total_batches: number | null
+          total_consumption: number | null
+          total_qty: number | null
+          total_shade_loading: number | null
+          user_id: string
+          water_qty: number | null
+        }
+        Insert: {
+          batch_volume?: number | null
+          cellulose?: number | null
+          cf_only_cf?: string | null
+          consumption_per_day?: number | null
+          created_at?: string
+          customer_name?: string | null
+          days_required?: number | null
+          denier_filament?: string | null
+          id?: string
+          mc_no?: string | null
+          no_of_positions?: number | null
+          pigment_conc_full?: number | null
+          pigment_conc_half?: number | null
+          pigments?: Json | null
+          production_to_be_done_kg?: number | null
+          pump_throw?: number | null
+          rate_cc_min?: number | null
+          rate_lit_hr?: number | null
+          results?: Json | null
+          sdu_no?: string | null
+          shade_name: string
+          shade_no?: string | null
+          total_batches?: number | null
+          total_consumption?: number | null
+          total_qty?: number | null
+          total_shade_loading?: number | null
+          user_id: string
+          water_qty?: number | null
+        }
+        Update: {
+          batch_volume?: number | null
+          cellulose?: number | null
+          cf_only_cf?: string | null
+          consumption_per_day?: number | null
+          created_at?: string
+          customer_name?: string | null
+          days_required?: number | null
+          denier_filament?: string | null
+          id?: string
+          mc_no?: string | null
+          no_of_positions?: number | null
+          pigment_conc_full?: number | null
+          pigment_conc_half?: number | null
+          pigments?: Json | null
+          production_to_be_done_kg?: number | null
+          pump_throw?: number | null
+          rate_cc_min?: number | null
+          rate_lit_hr?: number | null
+          results?: Json | null
+          sdu_no?: string | null
+          shade_name?: string
+          shade_no?: string | null
+          total_batches?: number | null
+          total_consumption?: number | null
+          total_qty?: number | null
+          total_shade_loading?: number | null
+          user_id?: string
+          water_qty?: number | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +359,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
