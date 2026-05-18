@@ -143,24 +143,58 @@ export async function parseRecipeFile(file: File): Promise<RecipeRecord[]> {
     const pctIdx = pigmentHeaders[i];
     const kgIdx = pigmentHeaders[i + 1] ?? -1;
 
-    // Header context: rows pctIdx-2 and pctIdx-1
-    const ctxLabels = (rows[pctIdx - 2] || []) as any[];
-    const ctxValues = (rows[pctIdx - 1] || []) as any[];
+    // Dynamically locate the yellow header row closest above pctIdx for this recipe block
+    let yHeaderIdx = -1;
+    for (let j = pctIdx - 1; j >= 0; j--) {
+      const r = rows[j] || [];
+      if (
+        r.some(
+          (cell) =>
+            typeof cell === "string" && cell.toLowerCase().includes("shade no"),
+        )
+      ) {
+        yHeaderIdx = j;
+        break;
+      }
+    }
 
-    // ctxLabels[0] = shade name, ctxLabels[1] = denier, ctxLabels[2] = sdu/mixer
-    const shadeName = toStr(ctxLabels[0]);
-    const denier = toStr(ctxLabels[1]);
-    const sduUnit = toStr(ctxLabels[2]);
-    const customer = toStr(ctxValues[0] ?? ctxValues[7]);
+    // Dynamic yellow header lookup helper
+    const findYellowValue = (labelSub: string): string => {
+      if (yHeaderIdx === -1) return "";
+      const headerRow = rows[yHeaderIdx] || [];
+      const valuesRow = rows[yHeaderIdx + 1] || [];
+      const colIdx = headerRow.findIndex(
+        (cell) =>
+          typeof cell === "string" &&
+          cell.toLowerCase().includes(labelSub.toLowerCase()),
+      );
+      return colIdx !== -1 ? toStr(valuesRow[colIdx]) : "";
+    };
 
-    // The header row 0 has "Shade No.", "Denier / Filament", ... structured
-    // values appear in row 1 (for the FIRST batch only). For subsequent
-    // batches we extract from local context. As a fallback, we leave blank.
-    const shadeNoVal = toStr(ctxValues[4]);
-    const productionKg = toNum(ctxValues[10]);
-    const batchVolume = toNum(ctxValues[11]) || 200;
-    const mcNo = toStr(ctxValues[12]);
-    const productionPeriod = toStr(ctxValues[15]);
+    // Scan for shade name / description in the rows above the yellow header
+    let shadeName = "";
+    if (yHeaderIdx !== -1) {
+      for (let j = Math.max(0, yHeaderIdx - 4); j < yHeaderIdx; j++) {
+        const r = rows[j] || [];
+        const firstVal = r.find(
+          (cell) => typeof cell === "string" && cell.trim().length > 3,
+        );
+        if (firstVal) {
+          shadeName = toStr(firstVal);
+          break;
+        }
+      }
+    }
+
+    const shadeNoVal = findYellowValue("Shade No");
+    const denier = findYellowValue("Denier");
+    const sduUnit = findYellowValue("SDU No");
+    const customer = findYellowValue("Customer");
+    const productionKg = toNum(findYellowValue("Production To Be Done"));
+    const batchVolume = toNum(findYellowValue("Batch Volume")) || 200;
+    const mcNo = findYellowValue("M/C No");
+    const cellulose = toNum(findYellowValue("Cellulose")) || 8.8;
+    const productionPeriod = findYellowValue("period");
 
     // Helper: read pigment % row by name, scanning a few rows after pctIdx
     const findPigment = (name: string, startIdx: number, valueCol: number) => {
@@ -220,10 +254,11 @@ export async function parseRecipeFile(file: File): Promise<RecipeRecord[]> {
     recipes.push({
       id: `R-${recipes.length + 1}`,
       shadeName: shadeName || `Recipe ${recipes.length + 1}`,
-      denier,
+      shadeNo: shadeNoVal || "",
+      denier: denier || "",
       sduUnit,
       customer,
-      mcNo: mcNo || shadeNoVal,
+      mcNo: mcNo || "",
       batchVolume,
       productionKg,
       blackAV,
@@ -244,6 +279,7 @@ export async function parseRecipeFile(file: File): Promise<RecipeRecord[]> {
       concFullPct,
       concHalfPct,
       productionPeriod,
+      cellulose,
     });
   }
 
@@ -273,42 +309,59 @@ export function exportRecipeToPDF(
   doc.setTextColor(120);
   doc.text(`Generated ${new Date().toLocaleString()}`, 14, 22);
 
+  const body = [
+    ["Shade No.", String(inputs.shadeNo || "-")],
+    ["Denier / Filament", String(inputs.denierFilament || "-")],
+    ["Pump Throw", String(inputs.pumpThrow || "0")],
+    ["Batch Volume (L)", String(inputs.batchVolume)],
+    ["Pump Rate (L/min)", String(inputs.pumpRate)],
+    [
+      "Concentration",
+      `${inputs.concentration} Machine (${outputs.calculatedConcFull ?? inputs.concFullPct}%)`,
+    ],
+    ["Total Shade Loading (%)", String(inputs.totalShadeLoading)],
+  ];
+
+  // Dynamically push all active pigments into the PDF inputs table body
+  if (inputs.pigments && Array.isArray(inputs.pigments)) {
+    inputs.pigments.forEach((p: any) => {
+      body.push([`${p.name} (%)`, String(p.value)]);
+    });
+  }
+
+  body.push(["Target Shade (%)", String(inputs.targetShade)]);
+
   autoTable(doc, {
     startY: 28,
     head: [["Input", "Value"]],
     headStyles: { fillColor: [40, 50, 65], textColor: 255 },
     styles: { fontSize: 9 },
-    body: [
-      ["Batch Volume (L)", String(inputs.batchVolume)],
-      ["Pump Rate (L/min)", String(inputs.pumpRate)],
-      [
-        "Concentration",
-        `${inputs.concentration} Machine (${inputs.concFullPct}%)`,
-      ],
-      ["Total Shade Loading (%)", String(inputs.totalShadeLoading)],
-      ["Black AV (%)", String(inputs.blackAV)],
-      ["Red GVD (%)", String(inputs.redGVD)],
-      ["Orange GRVD (%)", String(inputs.orangeGRVD)],
-      ["Target Shade (%)", String(inputs.targetShade)],
-    ],
+    body,
   });
 
   const lastY = (doc as any).lastAutoTable.finalY + 6;
+
+  const outputBody: string[][] = [];
+  // Dynamically push computed volumes of all active pigments into the outputs table body
+  if (outputs.pigments && Array.isArray(outputs.pigments)) {
+    outputs.pigments.forEach((p: any) => {
+      outputBody.push([`${p.name} Volume (L)`, String(p.volume)]);
+    });
+  }
+  outputBody.push(
+    ["Total Shade Volume (L)", String(outputs.shadeVolume)],
+    ["Achievement (%)", String(outputs.achievement)],
+    ["Performance (%)", String(outputs.performance)],
+    ["Estimated BF (%)", String(outputs.estimatedBf)],
+    ["Cycle Time (min)", String(outputs.cycleMin)],
+  );
+
   autoTable(doc, {
     startY: lastY,
     head: [["Output", "Value"]],
     headStyles: { fillColor: [180, 130, 30], textColor: 255 },
     styles: { fontSize: 9 },
-    body: [
-      ["Black AV Volume (L)", String(outputs.blackAVVol)],
-      ["Red GVD Volume (L)", String(outputs.redGVDVol)],
-      ["Orange GRVD Volume (L)", String(outputs.orangeGRVDVol)],
-      ["Total Shade Volume (L)", String(outputs.shadeVolume)],
-      ["Achievement (%)", String(outputs.achievement)],
-      ["Performance (%)", String(outputs.performance)],
-      ["Estimated BF (%)", String(outputs.estimatedBf)],
-      ["Cycle Time (min)", String(outputs.cycleMin)],
-    ],
+    body: outputBody,
   });
 
   doc.save(filename);
@@ -317,44 +370,60 @@ export function exportRecipeToPDF(
 export function exportRecipeToExcel(
   inputs: Record<string, any>,
   outputs: Record<string, any>,
-  filename = "plantops-recipe.xlsx"
+  filename = "plantops-recipe.xlsx",
 ) {
   const wb = XLSX.utils.book_new();
 
+  // Include top-level metadata in the exported Excel inputs section
   const inputRows = [
+    { Metric: "Shade No.", Value: inputs.shadeNo || "-" },
+    { Metric: "Denier / Filament", Value: inputs.denierFilament || "-" },
+    { Metric: "Pump Throw", Value: inputs.pumpThrow || 0 },
     { Metric: "Batch Volume (L)", Value: inputs.batchVolume },
     { Metric: "Pump Rate (L/min)", Value: inputs.pumpRate },
-    { Metric: "Concentration", Value: `${inputs.concentration} Machine (${inputs.concFullPct}%)` },
+    {
+      Metric: "Concentration",
+      Value: `${inputs.concentration} Machine (${outputs.calculatedConcFull ?? inputs.concFullPct}%)`,
+    },
     { Metric: "Total Shade Loading (%)", Value: inputs.totalShadeLoading },
-    { Metric: "Black AV (%)", Value: inputs.blackAV },
-    { Metric: "Red GVD (%)", Value: inputs.redGVD },
-    { Metric: "Orange GRVD (%)", Value: inputs.orangeGRVD },
-    { Metric: "Target Shade (%)", Value: inputs.targetShade },
   ];
 
-  const outputRows = [
-    { Metric: "Black AV Volume (L)", Value: outputs.blackAVVol },
-    { Metric: "Red GVD Volume (L)", Value: outputs.redGVDVol },
-    { Metric: "Orange GRVD Volume (L)", Value: outputs.orangeGRVDVol },
+  // Dynamically push all active pigments into the Excel inputs rows
+  if (inputs.pigments && Array.isArray(inputs.pigments)) {
+    inputs.pigments.forEach((p: any) => {
+      inputRows.push({ Metric: `${p.name} (%)`, Value: p.value });
+    });
+  }
+
+  inputRows.push({ Metric: "Target Shade (%)", Value: inputs.targetShade });
+
+  const outputRows: { Metric: string; Value: any }[] = [];
+  // Dynamically push all computed pigment volumes into the Excel outputs rows
+  if (outputs.pigments && Array.isArray(outputs.pigments)) {
+    outputs.pigments.forEach((p: any) => {
+      outputRows.push({ Metric: `${p.name} Volume (L)`, Value: p.volume });
+    });
+  }
+  outputRows.push(
     { Metric: "Total Shade Volume (L)", Value: outputs.shadeVolume },
     { Metric: "Achievement (%)", Value: outputs.achievement },
     { Metric: "Performance (%)", Value: outputs.performance },
     { Metric: "Estimated BF (%)", Value: outputs.estimatedBf },
     { Metric: "Cycle Time (min)", Value: outputs.cycleMin },
-  ];
+  );
 
   const combinedRows = [
     { Metric: "--- INPUTS ---", Value: "" },
     ...inputRows,
     { Metric: "", Value: "" },
     { Metric: "--- OUTPUTS ---", Value: "" },
-    ...outputRows
+    ...outputRows,
   ];
 
   const ws = XLSX.utils.json_to_sheet(combinedRows);
-  
+
   ws["!cols"] = [{ wch: 25 }, { wch: 20 }];
-  
+
   XLSX.utils.book_append_sheet(wb, ws, "Recipe Calculation");
   XLSX.writeFile(wb, filename);
 }
@@ -378,12 +447,13 @@ export function exportToPDF(
     startY: 26,
     styles: { fontSize: 7, cellPadding: 1.5 },
     headStyles: { fillColor: [40, 50, 65], textColor: 255 },
+    // Reordered columns in PDF output: Party is placed directly after Shade
     head: [
       [
         "Date",
         "Shade",
-        "Colour",
         "Party",
+        "Colour",
         "M/C",
         "Unit",
         "Shade%",
@@ -396,8 +466,9 @@ export function exportToPDF(
     body: rows.map((r) => [
       r.date,
       r.shadeNo,
-      r.colour,
+      // Reordered data values: partyName follows shadeNo
       r.partyName,
+      r.colour,
       r.mcNo,
       r.sduUnitNo,
       r.totalShadePct.toFixed(2),

@@ -100,13 +100,15 @@ export function downloadQualityPDF(rows: any[]) {
   doc.setFontSize(16);
   doc.text("Quality Records Report", 14, 14);
 
-  const headers = ["Date", "Shade No", "Colour", "Party", "Denier", "M/C", "Shade %", "BF", "Variation", "Quality"];
+  // Reorder PDF headers to place Party and Denier right after Shade No, matching the UI
+  const headers = ["Date", "Shade No", "Party", "Denier", "Colour", "M/C", "Shade %", "BF", "Variation", "Quality"];
   autoTable(doc, {
     startY: 28,
     head: [headers],
     body: rows.map((r) => [
       r.record_date || `${r.day}/${r.month}/${r.year}`,
-      r.shade_no, r.colour, r.party_name, r.denier, r.mc_no,
+      // Reordered data columns in PDF output: Party Name and Denier placed after Shade No
+      r.shade_no, r.party_name, r.denier, r.colour, r.mc_no,
       r.total_shade_pct, r.bf, r.shade_variation, r.quality,
     ]),
     headStyles: { fillColor: [59, 111, 160] },

@@ -15,7 +15,8 @@ import { useAuth } from "@/hooks/useAuth";
 const FIELD_MAP: Record<string, string> = {
   "Day": "day", "Month": "month", "Year": "year",
   "Shade No": "shade_no", "Colour": "colour", "Color": "colour",
-  "Party Name": "party_name", "Denier": "denier",
+  // Map both 'Party Name' and 'Party' to party_name, and 'Denier' to denier for Excel uploads
+  "Party Name": "party_name", "Party": "party_name", "Denier": "denier",
   "S.D. Unit No": "sd_unit_no", "SD Unit No": "sd_unit_no",
   "M/C No": "mc_no", "MC No": "mc_no",
   "Total shade %": "total_shade_pct", "Total Shade %": "total_shade_pct",
@@ -201,8 +202,9 @@ export default function Quality() {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {[
                   ["day", "Day", "number"], ["month", "Month", "number"], ["year", "Year", "number"],
-                  ["shade_no", "Shade No"], ["colour", "Colour"], ["party_name", "Party Name"],
-                  ["denier", "Denier"], ["sd_unit_no", "SD Unit No"], ["mc_no", "M/C No"],
+                  // Position Shade No first, then Party Name and Denier right after, followed by Colour
+                  ["shade_no", "Shade No"], ["party_name", "Party Name"], ["denier", "Denier"],
+                  ["colour", "Colour"], ["sd_unit_no", "SD Unit No"], ["mc_no", "M/C No"],
                   ["total_shade_pct", "Total Shade %", "number"], ["pt", "P.T.", "number"], ["rate_litres_min", "Rate L/min", "number"],
                   ["dispergent_used", "Dispergent"], ["type_of_mixer", "Type of Mixer"], ["quality", "Quality"],
                   ["bf", "BF", "number"], ["shade_variation", "Shade Variation", "number"],
@@ -276,7 +278,8 @@ export default function Quality() {
             <table className="w-full text-xs">
               <thead className="bg-muted/40 sticky top-0 backdrop-blur z-10">
                 <tr className="text-left border-b border-border">
-                  {["Date","Shade","Colour","Party","Denier","M/C","Shade %","BF","Var.","Quality",""].map((h) => (
+                  {/* Reordered columns: Party and Denier placed directly after Shade */}
+                  {["Date","Shade","Party","Denier","Colour","M/C","Shade %","BF","Var.","Quality",""].map((h) => (
                     <th key={h} className="px-3 py-2.5 font-medium uppercase tracking-wider text-[10px] text-muted-foreground whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -286,9 +289,10 @@ export default function Quality() {
                   <tr key={r.id} className="border-b border-border hover:bg-secondary/40 transition-colors group">
                     <td className="px-3 py-2.5 whitespace-nowrap">{r.record_date || `${r.day}/${r.month}/${r.year}`}</td>
                     <td className="px-3 py-2.5 font-medium text-primary">{r.shade_no}</td>
-                    <td className="px-3 py-2.5 font-sans truncate max-w-[120px]" title={r.colour}>{r.colour}</td>
+                    {/* Placed Party and Denier columns right after Shade in the table body */}
                     <td className="px-3 py-2.5 font-sans truncate max-w-[120px]" title={r.party_name}>{r.party_name}</td>
                     <td className="px-3 py-2.5">{r.denier}</td>
+                    <td className="px-3 py-2.5 font-sans truncate max-w-[120px]" title={r.colour}>{r.colour}</td>
                     <td className="px-3 py-2.5">{r.mc_no}</td>
                     <td className="px-3 py-2.5">{r.total_shade_pct}</td>
                     <td className="px-3 py-2.5">{r.bf}</td>

@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   AlertCircle,
   FileSpreadsheet,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import {
   exportRecipeToPDF,
@@ -25,21 +27,32 @@ import { cn } from "@/lib/utils";
 
 // --- Types ---
 interface Inputs {
+  // Metadata fields for shade info and pump throw (can be uploaded via excel or typed manually)
+  shadeNo: string;
+  pumpThrow: number;
+  denierFilament: string;
   batchVolume: number;
   pumpRate: number;
-  blackAV: number;
-  redGVD: number;
-  orangeGRVD: number;
+  // A dynamic pigments list
+  pigments: { id: string; name: string; value: number }[];
   totalShadeLoading: number;
   concFullPct: number;
   targetShade: number;
   concentration: "Full" | "Half";
+  // Added cellulose and rateCcMin to dynamically calculate concentration from formulas
+  cellulose: number;
+  rateCcMin: number;
+}
+
+interface OutputPigment {
+  name: string;
+  value: number;
+  volume: number;
 }
 
 interface Outputs {
-  blackAVVol: number;
-  redGVDVol: number;
-  orangeGRVDVol: number;
+  calculatedConcFull: number;
+  pigments: OutputPigment[];
   shadeVolume: number;
   totalPigmentPct: number;
   achievement: number;
@@ -50,22 +63,32 @@ interface Outputs {
 
 // --- Logic ---
 function calculate(i: Inputs): Outputs {
-  const conc = i.concentration === "Full" ? i.concFullPct : i.concFullPct / 2;
+  const cell = i.cellulose > 0 ? i.cellulose : 8.8;
+  const rateCc = i.rateCcMin > 0 ? i.rateCcMin : 77;
+  
+  // Calculate Concentration dynamically using the client's formula: (132 * Cellulose / 500) * Total Shade Loading * Pump Throw / Rate in cc/min
+  const calculatedConcFull = i.pumpThrow > 0 && rateCc > 0
+    ? +(((132 * cell / 500) * i.totalShadeLoading * i.pumpThrow) / rateCc).toFixed(2)
+    : i.concFullPct;
+
+  const conc = i.concentration === "Full" ? calculatedConcFull : calculatedConcFull / 2;
   const tsl = i.totalShadeLoading > 0 ? i.totalShadeLoading : 1;
-  const blackAVVol = +(
-    (((conc * i.batchVolume) / 100) * i.blackAV) /
-    tsl
-  ).toFixed(3);
-  const redGVDVol = +(
-    (((conc * i.batchVolume) / 100) * i.redGVD) /
-    tsl
-  ).toFixed(3);
-  const orangeGRVDVol = +(
-    (((conc * i.batchVolume) / 100) * i.orangeGRVD) /
-    tsl
-  ).toFixed(3);
-  const shadeVolume = +(blackAVVol + redGVDVol + orangeGRVDVol).toFixed(3);
-  const totalPigmentPct = +(i.blackAV + i.redGVD + i.orangeGRVD).toFixed(3);
+
+  let totalPigmentPct = 0;
+  // Dynamically calculate pigment solution volumes for each active pigment
+  const outputPigments = (i.pigments || []).map((p) => {
+    const vol = +((((conc * i.batchVolume) / 100) * p.value) / tsl).toFixed(3);
+    totalPigmentPct += p.value;
+    return {
+      name: p.name,
+      value: p.value,
+      volume: vol,
+    };
+  });
+
+  totalPigmentPct = +totalPigmentPct.toFixed(3);
+  const shadeVolume = +outputPigments.reduce((sum, p) => sum + p.volume, 0).toFixed(3);
+
   const achievement =
     i.targetShade > 0
       ? +((totalPigmentPct / i.targetShade) * 100).toFixed(2)
@@ -77,10 +100,10 @@ function calculate(i: Inputs): Outputs {
   const estimatedBf = +Math.min(98, 60 + performance * 0.32).toFixed(2);
   const cycleMin =
     i.pumpRate > 0 ? +(i.batchVolume / i.pumpRate).toFixed(1) : 0;
+
   return {
-    blackAVVol,
-    redGVDVol,
-    orangeGRVDVol,
+    calculatedConcFull,
+    pigments: outputPigments,
     shadeVolume,
     totalPigmentPct,
     achievement,
@@ -166,16 +189,24 @@ function ImportExcelButton({
 export default function Recipe() {
   const [recipes, setRecipes] = useState<any[]>([]);
 
+  // Setup default state containing the new metadata fields and dynamic pigments
   const [inputs, setInputs] = useState<Inputs>({
-    batchVolume: 200,
-    pumpRate: 6,
-    blackAV: 1.25,
-    redGVD: 0.4,
-    orangeGRVD: 4,
-    totalShadeLoading: 5.65,
-    concFullPct: 15,
-    targetShade: 5.65,
+    shadeNo: "0",
+    pumpThrow: 0,
+    denierFilament: "0",
+    batchVolume: 0,
+    pumpRate: 0,
+    pigments: [
+      { id: "blackAV", name: "Black AV", value: 0 },
+      { id: "redGVD", name: "Red GVD", value: 0 },
+      { id: "orangeGRVD", name: "Orange GRVD", value: 0 }
+    ],
+    totalShadeLoading: 0,
+    concFullPct: 0,
+    targetShade: 0,
     concentration: "Full",
+    cellulose: 0,
+    rateCcMin: 0,
   });
   const [submitted, setSubmitted] = useState<{
     inputs: Inputs;
@@ -213,24 +244,32 @@ export default function Recipe() {
       return;
     }
     const subject = encodeURIComponent("PlantOps — Recipe Calculation");
+    
+    // Dynamically format input and output pigments lists in email body
+    const pigmentsInputStr = (submitted.inputs.pigments || [])
+      .map((p: any) => `  ${p.name.padEnd(12)} = ${p.value}%`)
+      .join("\n");
+    const pigmentsOutputStr = (submitted.outputs.pigments || [])
+      .map((p: any) => `  ${p.name.padEnd(12)} = ${p.volume} L`)
+      .join("\n");
+
     const body = encodeURIComponent(
       [
         "Recipe Calculation",
         "",
+        `Shade No: ${submitted.inputs.shadeNo || "-"}`,
+        `Denier / Filament: ${submitted.inputs.denierFilament || "-"}`,
+        `Pump Throw: ${submitted.inputs.pumpThrow || "-"}`,
         `Batch Volume: ${submitted.inputs.batchVolume} L`,
         `Pump Rate: ${submitted.inputs.pumpRate} L/min`,
         `Concentration: ${submitted.inputs.concentration} Machine (${submitted.inputs.concFullPct}%)`,
         `Total Shade Loading: ${submitted.inputs.totalShadeLoading}%`,
         "",
         "Pigments (% on yarn):",
-        `  Black AV   = ${submitted.inputs.blackAV}%`,
-        `  Red GVD    = ${submitted.inputs.redGVD}%`,
-        `  Orange GRVD= ${submitted.inputs.orangeGRVD}%`,
+        pigmentsInputStr,
         "",
         "Calculated Volumes (L of pigment solution per batch):",
-        `  Black AV   = ${submitted.outputs.blackAVVol} L`,
-        `  Red GVD    = ${submitted.outputs.redGVDVol} L`,
-        `  Orange GRVD= ${submitted.outputs.orangeGRVDVol} L`,
+        pigmentsOutputStr,
         `  Total      = ${submitted.outputs.shadeVolume} L`,
         "",
         `Achievement : ${submitted.outputs.achievement}%`,
@@ -260,7 +299,30 @@ export default function Recipe() {
               if (!parsed.length)
                 return { ok: false, msg: "No recipe blocks found" };
               setRecipes(parsed);
-              return { ok: true, msg: `Imported ${parsed.length} recipe(s)` };
+
+              // Immediately populate the calculator inputs state with the parsed Excel record on upload
+              const r = parsed[0];
+              setInputs({
+                shadeNo: r.shadeNo || r.shadeName || "",
+                denierFilament: r.denier || "",
+                pumpThrow: r.pumpThrow || 0,
+                batchVolume: r.batchVolume || 200,
+                pumpRate: r.rateLitHr || 6,
+                // Pre-fill the dynamic pigments list from spreadsheet column data
+                pigments: [
+                  { id: "blackAV", name: "Black AV", value: r.blackAV || 0 },
+                  { id: "redGVD", name: "Red GVD", value: r.redGVD || 0 },
+                  { id: "orangeGRVD", name: "Orange GRVD", value: r.orangeGRVD || 0 }
+                ],
+                totalShadeLoading: r.totalShadeLoading || 0,
+                concFullPct: r.concFullPct || 15,
+                targetShade: r.totalShadeLoading || 0,
+                concentration: "Full",
+                cellulose: r.cellulose || 8.8,
+                rateCcMin: r.rateCcMin || 77.0,
+              });
+
+              return { ok: true, msg: `Imported ${parsed.length} recipe(s) & loaded to calculator` };
             }}
           />
         </div>
@@ -284,6 +346,38 @@ export default function Recipe() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
+              {/* Display Shade No., Denier / Filament, and Pump Throw at the top using standard, individual Field components */}
+              <Field
+                label="Shade No."
+                value={inputs.shadeNo}
+                onChange={(v) => set("shadeNo", v)}
+                type="text"
+              />
+              <Field
+                label="Denier / Filament"
+                value={inputs.denierFilament}
+                onChange={(v) => set("denierFilament", v)}
+                type="text"
+              />
+              <Field
+                label="Pump Throw"
+                value={inputs.pumpThrow}
+                onChange={(v) => set("pumpThrow", v)}
+                step={0.01}
+              />
+              <Field
+                label="Cellulose"
+                value={inputs.cellulose}
+                onChange={(v) => set("cellulose", v)}
+                step={0.1}
+              />
+              <Field
+                label="Rate (cc/min)"
+                value={inputs.rateCcMin}
+                onChange={(v) => set("rateCcMin", v)}
+                step={0.1}
+              />
+
               <Field
                 label="Batch Volume (L)"
                 value={inputs.batchVolume}
@@ -297,9 +391,10 @@ export default function Recipe() {
               />
               <Field
                 label="Conc. Full M/C (%)"
-                value={inputs.concFullPct}
+                value={out.calculatedConcFull}
                 onChange={(v) => set("concFullPct", v)}
-                step={0.1}
+                step={0.01}
+                disabled
               />
               <Field
                 label="Total Shade Loading (%)"
@@ -307,30 +402,117 @@ export default function Recipe() {
                 onChange={(v) => set("totalShadeLoading", v)}
                 step={0.01}
               />
-              <Field
-                label="Black AV (% on yarn)"
-                value={inputs.blackAV}
-                onChange={(v) => set("blackAV", v)}
-                step={0.01}
-              />
-              <Field
-                label="Red GVD (% on yarn)"
-                value={inputs.redGVD}
-                onChange={(v) => set("redGVD", v)}
-                step={0.01}
-              />
-              <Field
-                label="Orange GRVD (% on yarn)"
-                value={inputs.orangeGRVD}
-                onChange={(v) => set("orangeGRVD", v)}
-                step={0.01}
-              />
+
               <Field
                 label="Target Shade %"
                 value={inputs.targetShade}
                 onChange={(v) => set("targetShade", v)}
                 step={0.01}
               />
+
+              {/* Dynamic Pigment Section with dynamically added fields, customizable names, and live calculation */}
+              <div className="col-span-2 border-t border-b border-border py-4 my-2 bg-muted/20 px-3 rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-[11px] uppercase tracking-wider font-bold text-primary">
+                    Pigment Section (% on yarn)
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const newPigments = [
+                        ...inputs.pigments,
+                        {
+                          id: `custom-${Date.now()}`,
+                          name: `Pigment ${inputs.pigments.length + 1}`,
+                          value: 0,
+                        },
+                      ];
+                      // Calculate the sum of all pigments dynamically to update the shade loading
+                      const sum = +newPigments.reduce((acc, curr) => acc + curr.value, 0).toFixed(3);
+                      setInputs({ 
+                        ...inputs, 
+                        pigments: newPigments,
+                        totalShadeLoading: sum,
+                        targetShade: sum
+                      });
+                    }}
+                    className="h-7 text-[10px] px-2.5 border-primary/20 text-primary hover:bg-primary/5 hover:text-primary whitespace-nowrap"
+                  >
+                    <Plus className="h-3 w-3 mr-1" /> Add Pigment
+                  </Button>
+                </div>
+                <div className="space-y-3">
+                  {inputs.pigments.map((p, idx) => (
+                    <div key={p.id || idx} className="grid grid-cols-12 gap-2 items-end">
+                      <div className="col-span-6">
+                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          Pigment Name
+                        </Label>
+                        <Input
+                          type="text"
+                          value={p.name}
+                          onChange={(e) => {
+                            const newPigments = [...inputs.pigments];
+                            newPigments[idx] = { ...p, name: e.target.value };
+                            setInputs({ ...inputs, pigments: newPigments });
+                          }}
+                          className="mt-1 bg-background h-9 text-xs font-semibold"
+                          placeholder="e.g. Black AV"
+                        />
+                      </div>
+                      <div className="col-span-4">
+                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          % on yarn
+                        </Label>
+                        <Input
+                          type="number"
+                          step={0.01}
+                          value={p.value}
+                          onChange={(e) => {
+                            const newPigments = [...inputs.pigments];
+                            newPigments[idx] = { ...p, value: parseFloat(e.target.value) || 0 };
+                            // Calculate the sum of all pigments dynamically to update the shade loading
+                            const sum = +newPigments.reduce((acc, curr) => acc + curr.value, 0).toFixed(3);
+                            setInputs({ 
+                              ...inputs, 
+                              pigments: newPigments,
+                              totalShadeLoading: sum,
+                              targetShade: sum
+                            });
+                          }}
+                          className="mt-1 bg-background num h-9 text-xs"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="col-span-2 flex justify-end pb-0.5">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            const newPigments = inputs.pigments.filter((_, i) => i !== idx);
+                            // Calculate the sum of all pigments dynamically to update the shade loading
+                            const sum = +newPigments.reduce((acc, curr) => acc + curr.value, 0).toFixed(3);
+                            setInputs({ 
+                              ...inputs, 
+                              pigments: newPigments,
+                              totalShadeLoading: sum,
+                              targetShade: sum
+                            });
+                          }}
+                          className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          disabled={inputs.pigments.length <= 1}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="col-span-2">
                 <Label className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
                   Machine Concentration
@@ -378,24 +560,24 @@ export default function Recipe() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Out
-                label="Black AV Vol"
-                value={out.blackAVVol}
-                unit="L"
-                tone="dark"
-              />
-              <Out
-                label="Red GVD Vol"
-                value={out.redGVDVol}
-                unit="L"
-                tone="red"
-              />
-              <Out
-                label="Orange GRVD Vol"
-                value={out.orangeGRVDVol}
-                unit="L"
-                tone="orange"
-              />
+              {/* Render dynamic calculated outputs for all pigments */}
+              {(out.pigments || []).map((p, idx) => (
+                <Out
+                  key={idx}
+                  label={`${p.name} Vol`}
+                  value={p.volume}
+                  unit="L"
+                  tone={
+                    p.name.toLowerCase().includes("black")
+                      ? "dark"
+                      : p.name.toLowerCase().includes("red")
+                      ? "red"
+                      : p.name.toLowerCase().includes("orange")
+                      ? "orange"
+                      : undefined
+                  }
+                />
+              ))}
               <Out
                 label="Shade Volume"
                 value={out.shadeVolume}
@@ -438,6 +620,9 @@ export default function Recipe() {
                 Calculated Recipe Output
               </div>
               <h3 className="text-xl font-bold tracking-tight mt-1">
+                {submitted.inputs.shadeNo
+                  ? `Shade ${submitted.inputs.shadeNo} · `
+                  : ""}
                 {submitted.inputs.concentration} Machine ·{" "}
                 {submitted.inputs.batchVolume} L batch
               </h3>
@@ -454,22 +639,16 @@ export default function Recipe() {
             </div>
 
             <div className="p-5">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-                <BigStat
-                  label="Black AV"
-                  v={submitted.outputs.blackAVVol}
-                  u="L"
-                />
-                <BigStat
-                  label="Red GVD"
-                  v={submitted.outputs.redGVDVol}
-                  u="L"
-                />
-                <BigStat
-                  label="Orange GRVD"
-                  v={submitted.outputs.orangeGRVDVol}
-                  u="L"
-                />
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-5">
+                {/* Dynamically render stats for any number of dynamic pigments */}
+                {(submitted.outputs.pigments || []).map((p, idx) => (
+                  <BigStat
+                    key={idx}
+                    label={p.name}
+                    v={p.volume}
+                    u="L"
+                  />
+                ))}
                 <BigStat
                   label="Total Volume"
                   v={submitted.outputs.shadeVolume}
@@ -577,7 +756,7 @@ export default function Recipe() {
                       className="border-t border-border hover:bg-secondary/40 transition-colors"
                     >
                       <td className="px-3 py-2 font-sans font-medium text-primary">
-                        {r.shadeName}
+                        {r.shadeNo || r.shadeName}
                       </td>
                       <td className="px-3 py-2">{r.denier}</td>
                       <td className="px-3 py-2 font-sans">{r.customer}</td>
@@ -609,11 +788,15 @@ function Field({
   value,
   onChange,
   step = 1,
+  type = "number",
+  disabled = false,
 }: {
   label: string;
-  value: number;
-  onChange: (v: number) => void;
+  value: number | string;
+  onChange: (v: any) => void;
   step?: number;
+  type?: "number" | "text";
+  disabled?: boolean;
 }) {
   return (
     <div>
@@ -621,11 +804,12 @@ function Field({
         {label}
       </Label>
       <Input
-        type="number"
-        step={step}
+        type={type}
+        step={type === "number" ? step : undefined}
         value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-        className="mt-1 bg-background num h-9"
+        onChange={(e) => onChange(type === "number" ? (parseFloat(e.target.value) || 0) : e.target.value)}
+        disabled={disabled}
+        className={cn("mt-1 bg-background h-9", type === "number" && "num", disabled && "bg-muted cursor-not-allowed text-muted-foreground font-semibold")}
       />
     </div>
   );
