@@ -63,25 +63,30 @@ interface Outputs {
 
 // --- Logic ---
 function calculate(i: Inputs): Outputs {
-  const cell = i.cellulose > 0 ? i.cellulose : 8.8;
-  const rateCc = i.rateCcMin > 0 ? i.rateCcMin : 77;
+  const cell = (+i.cellulose || 0) > 0 ? (+i.cellulose || 0) : 8.8;
+  const rateCc = (+i.rateCcMin || 0) > 0 ? (+i.rateCcMin || 0) : 77;
+  const tsl = (+i.totalShadeLoading || 0) > 0 ? (+i.totalShadeLoading || 0) : 1;
+  const pumpThrow = +i.pumpThrow || 0;
+  const batchVolume = +i.batchVolume || 0;
+  const pumpRate = +i.pumpRate || 0;
+  const targetShade = +i.targetShade || 0;
   
   // Calculate Concentration dynamically using the client's formula: (132 * Cellulose / 500) * Total Shade Loading * Pump Throw / Rate in cc/min
-  const calculatedConcFull = i.pumpThrow > 0 && rateCc > 0
-    ? +(((132 * cell / 500) * i.totalShadeLoading * i.pumpThrow) / rateCc).toFixed(2)
-    : i.concFullPct;
+  const calculatedConcFull = pumpThrow > 0 && rateCc > 0
+    ? +(((132 * cell / 500) * (+i.totalShadeLoading || 0) * pumpThrow) / rateCc).toFixed(2)
+    : (+i.concFullPct || 0);
 
   const conc = i.concentration === "Full" ? calculatedConcFull : calculatedConcFull / 2;
-  const tsl = i.totalShadeLoading > 0 ? i.totalShadeLoading : 1;
 
   let totalPigmentPct = 0;
   // Dynamically calculate pigment solution volumes for each active pigment
   const outputPigments = (i.pigments || []).map((p) => {
-    const vol = +((((conc * i.batchVolume) / 100) * p.value) / tsl).toFixed(3);
-    totalPigmentPct += p.value;
+    const val = +p.value || 0;
+    const vol = +((((conc * batchVolume) / 100) * val) / tsl).toFixed(3);
+    totalPigmentPct += val;
     return {
       name: p.name,
-      value: p.value,
+      value: val,
       volume: vol,
     };
   });
@@ -90,16 +95,16 @@ function calculate(i: Inputs): Outputs {
   const shadeVolume = +outputPigments.reduce((sum, p) => sum + p.volume, 0).toFixed(3);
 
   const achievement =
-    i.targetShade > 0
-      ? +((totalPigmentPct / i.targetShade) * 100).toFixed(2)
+    targetShade > 0
+      ? +((totalPigmentPct / targetShade) * 100).toFixed(2)
       : 0;
   const performance = +Math.min(
     100,
-    achievement * 0.92 + i.pumpRate * 1.5,
+    achievement * 0.92 + pumpRate * 1.5,
   ).toFixed(2);
   const estimatedBf = +Math.min(98, 60 + performance * 0.32).toFixed(2);
   const cycleMin =
-    i.pumpRate > 0 ? +(i.batchVolume / i.pumpRate).toFixed(1) : 0;
+    pumpRate > 0 ? +(batchVolume / pumpRate).toFixed(1) : 0;
 
   return {
     calculatedConcFull,
@@ -467,14 +472,15 @@ export default function Recipe() {
                           % on yarn
                         </Label>
                         <Input
-                          type="number"
-                          step={0.01}
-                          value={p.value}
+                          type="text"
+                          value={p.value === 0 ? "" : p.value}
                           onChange={(e) => {
+                            const val = e.target.value;
                             const newPigments = [...inputs.pigments];
-                            newPigments[idx] = { ...p, value: parseFloat(e.target.value) || 0 };
+                            const parsedVal = val === "" ? 0 : (parseFloat(val) || 0);
+                            newPigments[idx] = { ...p, value: parsedVal };
                             // Calculate the sum of all pigments dynamically to update the shade loading
-                            const sum = +newPigments.reduce((acc, curr) => acc + curr.value, 0).toFixed(3);
+                            const sum = +newPigments.reduce((acc, curr) => acc + (curr.value || 0), 0).toFixed(3);
                             setInputs({ 
                               ...inputs, 
                               pigments: newPigments,
@@ -790,6 +796,7 @@ function Field({
   step = 1,
   type = "number",
   disabled = false,
+  placeholder = "0",
 }: {
   label: string;
   value: number | string;
@@ -797,19 +804,37 @@ function Field({
   step?: number;
   type?: "number" | "text";
   disabled?: boolean;
+  placeholder?: string;
 }) {
+  const displayValue = (value === 0 || value === "0" || value === "0.00" || value === "") ? "" : value;
   return (
     <div>
       <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
         {label}
       </Label>
       <Input
-        type={type}
-        step={type === "number" ? step : undefined}
-        value={value}
-        onChange={(e) => onChange(type === "number" ? (parseFloat(e.target.value) || 0) : e.target.value)}
+        type={type === "number" ? "text" : type}
+        value={displayValue}
+        onChange={(e) => {
+          const val = e.target.value;
+          if (type === "number") {
+            if (val === "") {
+              onChange("");
+            } else {
+              const num = parseFloat(val);
+              onChange(isNaN(num) ? 0 : num);
+            }
+          } else {
+            onChange(val);
+          }
+        }}
+        placeholder={placeholder}
         disabled={disabled}
-        className={cn("mt-1 bg-background h-9", type === "number" && "num", disabled && "bg-muted cursor-not-allowed text-muted-foreground font-semibold")}
+        className={cn(
+          "mt-1 bg-background h-9",
+          type === "number" && "num",
+          disabled && "bg-muted cursor-not-allowed text-muted-foreground font-semibold"
+        )}
       />
     </div>
   );
