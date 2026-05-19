@@ -34,7 +34,7 @@ interface Inputs {
   batchVolume: number;
   pumpRate: number;
   // A dynamic pigments list
-  pigments: { id: string; name: string; value: number }[];
+  pigments: { id: string; name: string; value: number; weight?: number }[];
   totalShadeLoading: number;
   concFullPct: number;
   targetShade: number;
@@ -42,6 +42,13 @@ interface Inputs {
   // Added cellulose and rateCcMin to dynamically calculate concentration from formulas
   cellulose: number;
   rateCcMin: number;
+
+  // New fields
+  partyName: string;
+  productionRunDateFrom: string;
+  productionRunDateTo: string;
+  colorRunDurationDays: string;
+  totalConsumption: number;
 }
 
 interface OutputPigment {
@@ -59,24 +66,31 @@ interface Outputs {
   performance: number;
   estimatedBf: number;
   cycleMin: number;
+  totalBatches: number;
+  water: number;
 }
 
 // --- Logic ---
 function calculate(i: Inputs): Outputs {
-  const cell = (+i.cellulose || 0) > 0 ? (+i.cellulose || 0) : 8.8;
-  const rateCc = (+i.rateCcMin || 0) > 0 ? (+i.rateCcMin || 0) : 77;
-  const tsl = (+i.totalShadeLoading || 0) > 0 ? (+i.totalShadeLoading || 0) : 1;
+  const cell = (+i.cellulose || 0) > 0 ? +i.cellulose || 0 : 8.8;
+  const rateCc = (+i.rateCcMin || 0) > 0 ? +i.rateCcMin || 0 : 77;
+  const tsl = (+i.totalShadeLoading || 0) > 0 ? +i.totalShadeLoading || 0 : 1;
   const pumpThrow = +i.pumpThrow || 0;
   const batchVolume = +i.batchVolume || 0;
   const pumpRate = +i.pumpRate || 0;
   const targetShade = +i.targetShade || 0;
-  
-  // Calculate Concentration dynamically using the client's formula: (132 * Cellulose / 500) * Total Shade Loading * Pump Throw / Rate in cc/min
-  const calculatedConcFull = pumpThrow > 0 && rateCc > 0
-    ? +(((132 * cell / 500) * (+i.totalShadeLoading || 0) * pumpThrow) / rateCc).toFixed(2)
-    : (+i.concFullPct || 0);
 
-  const conc = i.concentration === "Full" ? calculatedConcFull : calculatedConcFull / 2;
+  // Calculate Concentration dynamically using the client's formula: (132 * Cellulose / 500) * Total Shade Loading * Pump Throw / Rate in cc/min
+  const calculatedConcFull =
+    pumpThrow > 0 && rateCc > 0
+      ? +(
+          (((132 * cell) / 500) * (+i.totalShadeLoading || 0) * pumpThrow) /
+          rateCc
+        ).toFixed(2)
+      : +i.concFullPct || 0;
+
+  const conc =
+    i.concentration === "Full" ? calculatedConcFull : calculatedConcFull / 2;
 
   let totalPigmentPct = 0;
   // Dynamically calculate pigment solution volumes for each active pigment
@@ -92,19 +106,26 @@ function calculate(i: Inputs): Outputs {
   });
 
   totalPigmentPct = +totalPigmentPct.toFixed(3);
-  const shadeVolume = +outputPigments.reduce((sum, p) => sum + p.volume, 0).toFixed(3);
+  const shadeVolume = +outputPigments
+    .reduce((sum, p) => sum + p.volume, 0)
+    .toFixed(3);
 
   const achievement =
-    targetShade > 0
-      ? +((totalPigmentPct / targetShade) * 100).toFixed(2)
-      : 0;
+    targetShade > 0 ? +((totalPigmentPct / targetShade) * 100).toFixed(2) : 0;
   const performance = +Math.min(
     100,
     achievement * 0.92 + pumpRate * 1.5,
   ).toFixed(2);
   const estimatedBf = +Math.min(98, 60 + performance * 0.32).toFixed(2);
-  const cycleMin =
-    pumpRate > 0 ? +(batchVolume / pumpRate).toFixed(1) : 0;
+  const cycleMin = pumpRate > 0 ? +(batchVolume / pumpRate).toFixed(1) : 0;
+
+  const totalBatches =
+    batchVolume > 0 ? +((i.totalConsumption || 0) / batchVolume).toFixed(2) : 0;
+  const totalPigmentWeight = outputPigments.reduce(
+    (sum, p) => sum + p.volume,
+    0,
+  );
+  const water = +(200 - totalPigmentWeight).toFixed(2);
 
   return {
     calculatedConcFull,
@@ -115,6 +136,8 @@ function calculate(i: Inputs): Outputs {
     performance,
     estimatedBf,
     cycleMin,
+    totalBatches,
+    water,
   };
 }
 
@@ -202,9 +225,9 @@ export default function Recipe() {
     batchVolume: 0,
     pumpRate: 0,
     pigments: [
-      { id: "blackAV", name: "Black AV", value: 0 },
-      { id: "redGVD", name: "Red GVD", value: 0 },
-      { id: "orangeGRVD", name: "Orange GRVD", value: 0 }
+      { id: "blackAV", name: "Black AV", value: 0, weight: 0 },
+      { id: "redGVD", name: "Red GVD", value: 0, weight: 0 },
+      { id: "orangeGRVD", name: "Orange GRVD", value: 0, weight: 0 },
     ],
     totalShadeLoading: 0,
     concFullPct: 0,
@@ -212,6 +235,11 @@ export default function Recipe() {
     concentration: "Full",
     cellulose: 0,
     rateCcMin: 0,
+    partyName: "",
+    productionRunDateFrom: "",
+    productionRunDateTo: "",
+    colorRunDurationDays: "",
+    totalConsumption: 0,
   });
   const [submitted, setSubmitted] = useState<{
     inputs: Inputs;
@@ -249,7 +277,7 @@ export default function Recipe() {
       return;
     }
     const subject = encodeURIComponent("PlantOps — Recipe Calculation");
-    
+
     // Dynamically format input and output pigments lists in email body
     const pigmentsInputStr = (submitted.inputs.pigments || [])
       .map((p: any) => `  ${p.name.padEnd(12)} = ${p.value}%`)
@@ -279,8 +307,12 @@ export default function Recipe() {
         "",
         `Achievement : ${submitted.outputs.achievement}%`,
         `Performance : ${submitted.outputs.performance}%`,
-        `Estimated BF: ${submitted.outputs.estimatedBf}%`,
         `Cycle Time  : ${submitted.outputs.cycleMin} min`,
+        `Party Name  : ${submitted.inputs.partyName || "-"}`,
+        `Run Date    : ${submitted.inputs.productionRunDateFrom} to ${submitted.inputs.productionRunDateTo}`,
+        `Duration    : ${submitted.inputs.colorRunDurationDays} days`,
+        `Total Batches: ${submitted.outputs.totalBatches}`,
+        `Water       : ${submitted.outputs.water}`,
       ].join("\n"),
     );
     window.location.href = `mailto:${emailTo}?subject=${subject}&body=${body}`;
@@ -315,9 +347,24 @@ export default function Recipe() {
                 pumpRate: r.rateLitHr || 6,
                 // Pre-fill the dynamic pigments list from spreadsheet column data
                 pigments: [
-                  { id: "blackAV", name: "Black AV", value: r.blackAV || 0 },
-                  { id: "redGVD", name: "Red GVD", value: r.redGVD || 0 },
-                  { id: "orangeGRVD", name: "Orange GRVD", value: r.orangeGRVD || 0 }
+                  {
+                    id: "blackAV",
+                    name: "Black AV",
+                    value: r.blackAV || 0,
+                    weight: r.blackAVKg || 0,
+                  },
+                  {
+                    id: "redGVD",
+                    name: "Red GVD",
+                    value: r.redGVD || 0,
+                    weight: r.redGVDKg || 0,
+                  },
+                  {
+                    id: "orangeGRVD",
+                    name: "Orange GRVD",
+                    value: r.orangeGRVD || 0,
+                    weight: r.orangeGRVDKg || 0,
+                  },
                 ],
                 totalShadeLoading: r.totalShadeLoading || 0,
                 concFullPct: r.concFullPct || 15,
@@ -325,9 +372,17 @@ export default function Recipe() {
                 concentration: "Full",
                 cellulose: r.cellulose || 8.8,
                 rateCcMin: r.rateCcMin || 77.0,
+                partyName: r.customer || "",
+                productionRunDateFrom: r.productionRunDateFrom || "",
+                productionRunDateTo: r.productionRunDateTo || "",
+                colorRunDurationDays: r.colorRunDurationDays || "",
+                totalConsumption: r.totalConsumption || 0,
               });
 
-              return { ok: true, msg: `Imported ${parsed.length} recipe(s) & loaded to calculator` };
+              return {
+                ok: true,
+                msg: `Imported ${parsed.length} recipe(s) & loaded to calculator`,
+              };
             }}
           />
         </div>
@@ -359,6 +414,60 @@ export default function Recipe() {
                 type="text"
               />
               <Field
+                label="Party Name"
+                value={inputs.partyName}
+                onChange={(v) => set("partyName", v)}
+                type="text"
+              />
+              <div className="col-span-2 grid grid-cols-2 gap-3">
+                <Field
+                  label="Run Date (From)"
+                  value={inputs.productionRunDateFrom}
+                  onChange={(v) => {
+                    set("productionRunDateFrom", v);
+                    // Calculate days if both dates are present
+                    if (v && inputs.productionRunDateTo) {
+                      const d1 = new Date(v);
+                      const d2 = new Date(inputs.productionRunDateTo);
+                      if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
+                        const days = Math.ceil(
+                          Math.abs(d2.getTime() - d1.getTime()) /
+                            (1000 * 60 * 60 * 24),
+                        );
+                        set("colorRunDurationDays", days.toString());
+                      }
+                    }
+                  }}
+                  type="date"
+                />
+                <Field
+                  label="Run Date (To)"
+                  value={inputs.productionRunDateTo}
+                  onChange={(v) => {
+                    set("productionRunDateTo", v);
+                    // Calculate days if both dates are present
+                    if (inputs.productionRunDateFrom && v) {
+                      const d1 = new Date(inputs.productionRunDateFrom);
+                      const d2 = new Date(v);
+                      if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
+                        const days = Math.ceil(
+                          Math.abs(d2.getTime() - d1.getTime()) /
+                            (1000 * 60 * 60 * 24),
+                        );
+                        set("colorRunDurationDays", days.toString());
+                      }
+                    }
+                  }}
+                  type="date"
+                />
+              </div>
+              <Field
+                label="Run Duration (days)"
+                value={inputs.colorRunDurationDays}
+                onChange={(v) => set("colorRunDurationDays", v)}
+                type="text"
+              />
+              <Field
                 label="Denier / Filament"
                 value={inputs.denierFilament}
                 onChange={(v) => set("denierFilament", v)}
@@ -382,12 +491,6 @@ export default function Recipe() {
                 onChange={(v) => set("rateCcMin", v)}
                 step={0.1}
               />
-
-              <Field
-                label="Batch Volume (L)"
-                value={inputs.batchVolume}
-                onChange={(v) => set("batchVolume", v)}
-              />
               <Field
                 label="Pump Rate (L/min)"
                 value={inputs.pumpRate}
@@ -395,12 +498,29 @@ export default function Recipe() {
                 step={0.1}
               />
               <Field
+                label="Total Batches"
+                value={out.totalBatches}
+                onChange={() => {}}
+                disabled
+              />
+              <Field
+                label="Water"
+                value={out.water}
+                onChange={() => {}}
+                disabled
+              />
+              <Field
+                label="Batch Volume (L)"
+                value={inputs.batchVolume}
+                onChange={(v) => set("batchVolume", v)}
+              />
+              {/* <Field
                 label="Conc. Full M/C (%)"
                 value={out.calculatedConcFull}
                 onChange={(v) => set("concFullPct", v)}
                 step={0.01}
                 disabled
-              />
+              /> */}
               <Field
                 label="Total Shade Loading (%)"
                 value={inputs.totalShadeLoading}
@@ -408,11 +528,17 @@ export default function Recipe() {
                 step={0.01}
               />
 
-              <Field
+              {/* <Field
                 label="Target Shade %"
                 value={inputs.targetShade}
                 onChange={(v) => set("targetShade", v)}
                 step={0.01}
+              /> */}
+
+              <Field
+                label="Total Consumption"
+                value={inputs.totalConsumption}
+                onChange={(v) => set("totalConsumption", v)}
               />
 
               {/* Dynamic Pigment Section with dynamically added fields, customizable names, and live calculation */}
@@ -432,15 +558,18 @@ export default function Recipe() {
                           id: `custom-${Date.now()}`,
                           name: `Pigment ${inputs.pigments.length + 1}`,
                           value: 0,
+                          weight: 0,
                         },
                       ];
                       // Calculate the sum of all pigments dynamically to update the shade loading
-                      const sum = +newPigments.reduce((acc, curr) => acc + curr.value, 0).toFixed(3);
-                      setInputs({ 
-                        ...inputs, 
+                      const sum = +newPigments
+                        .reduce((acc, curr) => acc + curr.value, 0)
+                        .toFixed(3);
+                      setInputs({
+                        ...inputs,
                         pigments: newPigments,
                         totalShadeLoading: sum,
-                        targetShade: sum
+                        targetShade: sum,
                       });
                     }}
                     className="h-7 text-[10px] px-2.5 border-primary/20 text-primary hover:bg-primary/5 hover:text-primary whitespace-nowrap"
@@ -450,7 +579,10 @@ export default function Recipe() {
                 </div>
                 <div className="space-y-3">
                   {inputs.pigments.map((p, idx) => (
-                    <div key={p.id || idx} className="grid grid-cols-12 gap-2 items-end">
+                    <div
+                      key={p.id || idx}
+                      className="grid grid-cols-12 gap-2 items-end"
+                    >
                       <div className="col-span-6">
                         <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
                           Pigment Name
@@ -467,7 +599,7 @@ export default function Recipe() {
                           placeholder="e.g. Black AV"
                         />
                       </div>
-                      <div className="col-span-4">
+                      <div className="col-span-2">
                         <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
                           % on yarn
                         </Label>
@@ -477,18 +609,33 @@ export default function Recipe() {
                           onChange={(e) => {
                             const val = e.target.value;
                             const newPigments = [...inputs.pigments];
-                            const parsedVal = val === "" ? 0 : (parseFloat(val) || 0);
+                            const parsedVal =
+                              val === "" ? 0 : parseFloat(val) || 0;
                             newPigments[idx] = { ...p, value: parsedVal };
                             // Calculate the sum of all pigments dynamically to update the shade loading
-                            const sum = +newPigments.reduce((acc, curr) => acc + (curr.value || 0), 0).toFixed(3);
-                            setInputs({ 
-                              ...inputs, 
+                            const sum = +newPigments
+                              .reduce((acc, curr) => acc + (curr.value || 0), 0)
+                              .toFixed(3);
+                            setInputs({
+                              ...inputs,
                               pigments: newPigments,
                               totalShadeLoading: sum,
-                              targetShade: sum
+                              targetShade: sum,
                             });
                           }}
                           className="mt-1 bg-background num h-9 text-xs"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                          Weight (Kg)
+                        </Label>
+                        <Input
+                          type="text"
+                          value={out.pigments[idx]?.volume || 0}
+                          disabled
+                          className="mt-1 bg-muted num h-9 text-xs cursor-not-allowed font-semibold text-muted-foreground"
                           placeholder="0.00"
                         />
                       </div>
@@ -498,14 +645,18 @@ export default function Recipe() {
                           variant="ghost"
                           size="icon"
                           onClick={() => {
-                            const newPigments = inputs.pigments.filter((_, i) => i !== idx);
+                            const newPigments = inputs.pigments.filter(
+                              (_, i) => i !== idx,
+                            );
                             // Calculate the sum of all pigments dynamically to update the shade loading
-                            const sum = +newPigments.reduce((acc, curr) => acc + curr.value, 0).toFixed(3);
-                            setInputs({ 
-                              ...inputs, 
+                            const sum = +newPigments
+                              .reduce((acc, curr) => acc + curr.value, 0)
+                              .toFixed(3);
+                            setInputs({
+                              ...inputs,
                               pigments: newPigments,
                               totalShadeLoading: sum,
-                              targetShade: sum
+                              targetShade: sum,
                             });
                           }}
                           className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
@@ -577,10 +728,10 @@ export default function Recipe() {
                     p.name.toLowerCase().includes("black")
                       ? "dark"
                       : p.name.toLowerCase().includes("red")
-                      ? "red"
-                      : p.name.toLowerCase().includes("orange")
-                      ? "orange"
-                      : undefined
+                        ? "red"
+                        : p.name.toLowerCase().includes("orange")
+                          ? "orange"
+                          : undefined
                   }
                 />
               ))}
@@ -648,12 +799,7 @@ export default function Recipe() {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-5">
                 {/* Dynamically render stats for any number of dynamic pigments */}
                 {(submitted.outputs.pigments || []).map((p, idx) => (
-                  <BigStat
-                    key={idx}
-                    label={p.name}
-                    v={p.volume}
-                    u="L"
-                  />
+                  <BigStat key={idx} label={p.name} v={p.volume} u="L" />
                 ))}
                 <BigStat
                   label="Total Volume"
@@ -681,6 +827,12 @@ export default function Recipe() {
                   v={submitted.outputs.cycleMin}
                   u="min"
                 />
+                <BigStat
+                  label="Total Batches"
+                  v={submitted.outputs.totalBatches}
+                  u=""
+                />
+                <BigStat label="Water" v={submitted.outputs.water} u="L" />
               </div>
 
               <div className="border-t border-border pt-4 grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-3 items-end">
@@ -799,43 +951,49 @@ function Field({
   placeholder = "0",
 }: {
   label: string;
-  value: number | string;
+  value: any;
   onChange: (v: any) => void;
   step?: number;
-  type?: "number" | "text";
+  type?: string;
   disabled?: boolean;
   placeholder?: string;
 }) {
-  const displayValue = (value === 0 || value === "0" || value === "0.00" || value === "") ? "" : value;
   return (
-    <div>
-      <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+    <div className="flex flex-col">
+      <Label className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
         {label}
       </Label>
-      <Input
-        type={type === "number" ? "text" : type}
-        value={displayValue}
-        onChange={(e) => {
-          const val = e.target.value;
-          if (type === "number") {
-            if (val === "") {
-              onChange("");
-            } else {
-              const num = parseFloat(val);
-              onChange(isNaN(num) ? 0 : num);
-            }
-          } else {
-            onChange(val);
-          }
-        }}
-        placeholder={placeholder}
-        disabled={disabled}
-        className={cn(
-          "mt-1 bg-background h-9",
-          type === "number" && "num",
-          disabled && "bg-muted cursor-not-allowed text-muted-foreground font-semibold"
-        )}
-      />
+      {type === "date" ? (
+        <Input
+          type="date"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          className="h-9 bg-background text-xs"
+        />
+      ) : type === "text" ? (
+        <Input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          placeholder={placeholder}
+          className="h-9 bg-background text-xs"
+        />
+      ) : (
+        <Input
+          type="number"
+          step={step}
+          value={value === 0 && !disabled ? "" : value}
+          onChange={(e) => {
+            const val = e.target.value;
+            onChange(val === "" ? 0 : parseFloat(val) || 0);
+          }}
+          disabled={disabled}
+          placeholder={placeholder}
+          className="h-9 bg-background num text-xs"
+        />
+      )}
     </div>
   );
 }

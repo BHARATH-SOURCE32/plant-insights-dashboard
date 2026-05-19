@@ -279,7 +279,7 @@ export default function Quality() {
               <thead className="bg-muted/40 sticky top-0 backdrop-blur z-10">
                 <tr className="text-left border-b border-border">
                   {/* Reordered columns: Party and Denier placed directly after Shade */}
-                  {["Date","Shade","Party","Denier","Colour","M/C","Shade %","BF","Var.","Quality",""].map((h) => (
+                  {["Date","Shade","Party Name","Denier","Colour","M/C","Shade %","BF","Var.","Quality",""].map((h) => (
                     <th key={h} className="px-3 py-2.5 font-medium uppercase tracking-wider text-[10px] text-muted-foreground whitespace-nowrap">{h}</th>
                   ))}
                 </tr>

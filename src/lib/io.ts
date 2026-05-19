@@ -251,6 +251,33 @@ export async function parseRecipeFile(file: File): Promise<RecipeRecord[]> {
 
     if (!shadeName && !blackAV && !redGVD && !orangeGRVD) continue;
 
+    let productionRunDateFrom = "";
+    let productionRunDateTo = "";
+    let colorRunDurationDays = "";
+    if (productionPeriod) {
+      const matches = productionPeriod.match(/\d{1,2}[\.\/-]\d{1,2}[\.\/-]\d{2,4}/g);
+      if (matches && matches.length >= 2) {
+        const parseDate = (s: string) => {
+          const parts = s.split(/[\.\/-]/);
+          if (parts.length === 3) {
+            let y = parseInt(parts[2]);
+            if (y < 100) y += 2000;
+            const m = parts[1].padStart(2, '0');
+            const d = parts[0].padStart(2, '0');
+            return `${y}-${m}-${d}`;
+          }
+          return "";
+        };
+        productionRunDateFrom = parseDate(matches[0]);
+        productionRunDateTo = parseDate(matches[1]);
+        const d1 = new Date(productionRunDateFrom);
+        const d2 = new Date(productionRunDateTo);
+        if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
+          colorRunDurationDays = Math.ceil(Math.abs(d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)).toString();
+        }
+      }
+    }
+
     recipes.push({
       id: `R-${recipes.length + 1}`,
       shadeName: shadeName || `Recipe ${recipes.length + 1}`,
@@ -279,6 +306,9 @@ export async function parseRecipeFile(file: File): Promise<RecipeRecord[]> {
       concFullPct,
       concHalfPct,
       productionPeriod,
+      productionRunDateFrom,
+      productionRunDateTo,
+      colorRunDurationDays,
       cellulose,
     });
   }
@@ -311,6 +341,11 @@ export function exportRecipeToPDF(
 
   const body = [
     ["Shade No.", String(inputs.shadeNo || "-")],
+    ["Party Name", String(inputs.partyName || "-")],
+    ["Run Date (From)", String(inputs.productionRunDateFrom || "-")],
+    ["Run Date (To)", String(inputs.productionRunDateTo || "-")],
+    ["Run Duration (days)", String(inputs.colorRunDurationDays || "0")],
+    ["Total Consumption", String(inputs.totalConsumption || "0")],
     ["Denier / Filament", String(inputs.denierFilament || "-")],
     ["Pump Throw", String(inputs.pumpThrow || "0")],
     ["Batch Volume (L)", String(inputs.batchVolume)],
@@ -354,6 +389,8 @@ export function exportRecipeToPDF(
     ["Performance (%)", String(outputs.performance)],
     ["Estimated BF (%)", String(outputs.estimatedBf)],
     ["Cycle Time (min)", String(outputs.cycleMin)],
+    ["Total Batches", String(outputs.totalBatches || 0)],
+    ["Water (L)", String(outputs.water || 0)],
   );
 
   autoTable(doc, {
@@ -377,6 +414,11 @@ export function exportRecipeToExcel(
   // Include top-level metadata in the exported Excel inputs section
   const inputRows = [
     { Metric: "Shade No.", Value: inputs.shadeNo || "-" },
+    { Metric: "Party Name", Value: inputs.partyName || "-" },
+    { Metric: "Run Date (From)", Value: inputs.productionRunDateFrom || "-" },
+    { Metric: "Run Date (To)", Value: inputs.productionRunDateTo || "-" },
+    { Metric: "Run Duration (days)", Value: inputs.colorRunDurationDays || "0" },
+    { Metric: "Total Consumption", Value: inputs.totalConsumption || 0 },
     { Metric: "Denier / Filament", Value: inputs.denierFilament || "-" },
     { Metric: "Pump Throw", Value: inputs.pumpThrow || 0 },
     { Metric: "Batch Volume (L)", Value: inputs.batchVolume },
@@ -410,6 +452,8 @@ export function exportRecipeToExcel(
     { Metric: "Performance (%)", Value: outputs.performance },
     { Metric: "Estimated BF (%)", Value: outputs.estimatedBf },
     { Metric: "Cycle Time (min)", Value: outputs.cycleMin },
+    { Metric: "Total Batches", Value: outputs.totalBatches || 0 },
+    { Metric: "Water (L)", Value: outputs.water || 0 },
   );
 
   const combinedRows = [
