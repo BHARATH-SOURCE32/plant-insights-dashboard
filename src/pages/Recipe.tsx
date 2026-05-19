@@ -16,6 +16,7 @@ import {
   FileSpreadsheet,
   Plus,
   Trash2,
+  Info,
 } from "lucide-react";
 import {
   exportRecipeToPDF,
@@ -24,6 +25,12 @@ import {
 } from "@/lib/io";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from "@/components/ui/tooltip";
 
 // --- Types ---
 interface Inputs {
@@ -34,7 +41,7 @@ interface Inputs {
   batchVolume: number;
   pumpRate: number;
   // A dynamic pigments list
-  pigments: { id: string; name: string; value: number; weight?: number }[];
+  pigments: { id: string; name: string; value: number | string; weight?: number }[];
   totalShadeLoading: number;
   concFullPct: number;
   targetShade: number;
@@ -219,9 +226,9 @@ export default function Recipe() {
 
   // Setup default state containing the new metadata fields and dynamic pigments
   const [inputs, setInputs] = useState<Inputs>({
-    shadeNo: "0",
+    shadeNo: "",
     pumpThrow: 0,
-    denierFilament: "0",
+    denierFilament: "",
     batchVolume: 0,
     pumpRate: 0,
     pigments: [
@@ -544,8 +551,27 @@ export default function Recipe() {
               {/* Dynamic Pigment Section with dynamically added fields, customizable names, and live calculation */}
               <div className="col-span-2 border-t border-b border-border py-4 my-2 bg-muted/20 px-3 rounded-lg">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="text-[11px] uppercase tracking-wider font-bold text-primary">
+                  <div className="text-[11px] uppercase tracking-wider font-bold text-primary flex items-center gap-1.5">
                     Pigment Section (% on yarn)
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger type="button" className="inline-flex items-center justify-center p-0.5 rounded-full hover:bg-muted focus:outline-none">
+                          <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-help" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-[280px] text-xs p-3 bg-popover text-popover-foreground border border-border shadow-lg rounded-md">
+                          <p className="font-semibold mb-1 text-foreground">Pigment Weight Calculation</p>
+                          <p className="text-muted-foreground leading-relaxed">
+                            To calculate pigment weights, you need to enter:
+                          </p>
+                          <ul className="list-disc pl-4 mt-1.5 space-y-1 text-muted-foreground">
+                            <li><strong>Batch Volume</strong></li>
+                            <li><strong>Pump Throw</strong></li>
+                            <li><strong>% on yarn</strong> (Pigment list value)</li>
+                            <li><strong>Total Consumption</strong></li>
+                          </ul>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   <Button
                     type="button"
@@ -563,7 +589,7 @@ export default function Recipe() {
                       ];
                       // Calculate the sum of all pigments dynamically to update the shade loading
                       const sum = +newPigments
-                        .reduce((acc, curr) => acc + curr.value, 0)
+                        .reduce((acc, curr) => acc + (+curr.value || 0), 0)
                         .toFixed(3);
                       setInputs({
                         ...inputs,
@@ -605,16 +631,15 @@ export default function Recipe() {
                         </Label>
                         <Input
                           type="text"
-                          value={p.value === 0 ? "" : p.value}
+                          value={p.value === 0 || p.value === "" ? "" : p.value}
                           onChange={(e) => {
                             const val = e.target.value;
+                            if (val !== "" && !/^\d*\.?\d*$/.test(val)) return;
                             const newPigments = [...inputs.pigments];
-                            const parsedVal =
-                              val === "" ? 0 : parseFloat(val) || 0;
-                            newPigments[idx] = { ...p, value: parsedVal };
+                            newPigments[idx] = { ...p, value: val };
                             // Calculate the sum of all pigments dynamically to update the shade loading
                             const sum = +newPigments
-                              .reduce((acc, curr) => acc + (curr.value || 0), 0)
+                              .reduce((acc, curr) => acc + (+curr.value || 0), 0)
                               .toFixed(3);
                             setInputs({
                               ...inputs,
@@ -650,7 +675,7 @@ export default function Recipe() {
                             );
                             // Calculate the sum of all pigments dynamically to update the shade loading
                             const sum = +newPigments
-                              .reduce((acc, curr) => acc + curr.value, 0)
+                              .reduce((acc, curr) => acc + (+curr.value || 0), 0)
                               .toFixed(3);
                             setInputs({
                               ...inputs,
