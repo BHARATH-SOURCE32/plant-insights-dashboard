@@ -171,9 +171,12 @@ export async function parseRecipeFile(file: File): Promise<RecipeRecord[]> {
       return colIdx !== -1 ? toStr(valuesRow[colIdx]) : "";
     };
 
-    // Scan for shade name / description in the rows above the yellow header
-    let shadeName = "";
-    if (yHeaderIdx !== -1) {
+    // Read cell A1 from the uploaded Excel sheet as the primary shade name source
+    const cellA1 = sheet["A1"];
+    let shadeName = cellA1 ? toStr(cellA1.v || cellA1.w) : "";
+
+    // Fall back to scanning the rows above the yellow header if A1 is empty
+    if (!shadeName && yHeaderIdx !== -1) {
       for (let j = Math.max(0, yHeaderIdx - 4); j < yHeaderIdx; j++) {
         const r = rows[j] || [];
         const firstVal = r.find(
@@ -339,7 +342,9 @@ export function exportRecipeToPDF(
   doc.setTextColor(120);
   doc.text(`Generated ${new Date().toLocaleString()}`, 14, 22);
 
+  // Populate the inputs section of the PDF table with Shade Name included
   const body = [
+    ["Shade Name", String(inputs.shadeName || "-")],
     ["Shade No.", String(inputs.shadeNo || "-")],
     ["Party Name", String(inputs.partyName || "-")],
     ["Run Date (From)", String(inputs.productionRunDateFrom || "-")],
@@ -411,8 +416,9 @@ export function exportRecipeToExcel(
 ) {
   const wb = XLSX.utils.book_new();
 
-  // Include top-level metadata in the exported Excel inputs section
+  // Include top-level metadata in the exported Excel inputs section, including Shade Name
   const inputRows = [
+    { Metric: "Shade Name", Value: inputs.shadeName || "-" },
     { Metric: "Shade No.", Value: inputs.shadeNo || "-" },
     { Metric: "Party Name", Value: inputs.partyName || "-" },
     { Metric: "Run Date (From)", Value: inputs.productionRunDateFrom || "-" },

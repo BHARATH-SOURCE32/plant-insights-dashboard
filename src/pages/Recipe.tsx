@@ -35,6 +35,8 @@ import {
 // --- Types ---
 interface Inputs {
   // Metadata fields for shade info and pump throw (can be uploaded via excel or typed manually)
+  // The name of the shade, extracted from cell A1 or entered manually
+  shadeName: string;
   shadeNo: string;
   pumpThrow: number;
   denierFilament: string;
@@ -226,6 +228,8 @@ export default function Recipe() {
 
   // Setup default state containing the new metadata fields and dynamic pigments
   const [inputs, setInputs] = useState<Inputs>({
+    // Initialize shadeName to empty string
+    shadeName: "",
     shadeNo: "",
     pumpThrow: 0,
     denierFilament: "",
@@ -297,6 +301,7 @@ export default function Recipe() {
       [
         "Recipe Calculation",
         "",
+        `Shade Name: ${submitted.inputs.shadeName || "-"}`,
         `Shade No: ${submitted.inputs.shadeNo || "-"}`,
         `Denier / Filament: ${submitted.inputs.denierFilament || "-"}`,
         `Pump Throw: ${submitted.inputs.pumpThrow || "-"}`,
@@ -347,7 +352,9 @@ export default function Recipe() {
               // Immediately populate the calculator inputs state with the parsed Excel record on upload
               const r = parsed[0];
               setInputs({
-                shadeNo: r.shadeNo || r.shadeName || "",
+                // Store parsed shadeName from cell A1 or scan fallback
+                shadeName: r.shadeName || "",
+                shadeNo: r.shadeNo || "",
                 denierFilament: r.denier || "",
                 pumpThrow: r.pumpThrow || 0,
                 batchVolume: r.batchVolume || 200,
@@ -413,11 +420,22 @@ export default function Recipe() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              {/* Display Shade No., Denier / Filament, and Pump Throw at the top using standard, individual Field components */}
+              {/* Display Shade Name and Shade No. at the top using standard Field components */}
               <Field
                 label="Shade No."
                 value={inputs.shadeNo}
                 onChange={(v) => set("shadeNo", v)}
+                type="text"
+              />
+              <Field
+                label="Total Consumption"
+                value={inputs.totalConsumption}
+                onChange={(v) => set("totalConsumption", v)}
+              />
+              <Field
+                label="Shade Name"
+                value={inputs.shadeName}
+                onChange={(v) => set("shadeName", v)}
                 type="text"
               />
               <Field
@@ -541,12 +559,6 @@ export default function Recipe() {
                 onChange={(v) => set("targetShade", v)}
                 step={0.01}
               /> */}
-
-              <Field
-                label="Total Consumption"
-                value={inputs.totalConsumption}
-                onChange={(v) => set("totalConsumption", v)}
-              />
 
               {/* Dynamic Pigment Section with dynamically added fields, customizable names, and live calculation */}
               <div className="col-span-2 border-t border-b border-border py-4 my-2 bg-muted/20 px-3 rounded-lg">
@@ -802,9 +814,13 @@ export default function Recipe() {
                 Calculated Recipe Output
               </div>
               <h3 className="text-xl font-bold tracking-tight mt-1">
+                {/* Display Shade Name and Shade No. side by side in output header */}
+                {submitted.inputs.shadeName ? `${submitted.inputs.shadeName} ` : ""}
                 {submitted.inputs.shadeNo
-                  ? `Shade ${submitted.inputs.shadeNo} · `
-                  : ""}
+                  ? `(${submitted.inputs.shadeNo}) · `
+                  : submitted.inputs.shadeName
+                    ? "· "
+                    : ""}
                 {submitted.inputs.concentration} Machine ·{" "}
                 {submitted.inputs.batchVolume} L batch
               </h3>
@@ -911,7 +927,8 @@ export default function Recipe() {
                 <thead className="bg-muted/40">
                   <tr className="text-left">
                     {[
-                      "Shade",
+                      "Shade Name",
+                      "Shade No.",
                       "Denier",
                       "Customer",
                       "M/C",
@@ -938,8 +955,12 @@ export default function Recipe() {
                       key={r.id || i}
                       className="border-t border-border hover:bg-secondary/40 transition-colors"
                     >
+                      {/* Display separate Shade Name and Shade No. columns */}
                       <td className="px-3 py-2 font-sans font-medium text-primary">
-                        {r.shadeNo || r.shadeName}
+                        {r.shadeName || "-"}
+                      </td>
+                      <td className="px-3 py-2 font-sans">
+                        {r.shadeNo || "-"}
                       </td>
                       <td className="px-3 py-2">{r.denier}</td>
                       <td className="px-3 py-2 font-sans">{r.customer}</td>
