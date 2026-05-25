@@ -427,22 +427,26 @@ export default function Recipe() {
                 onChange={(v) => set("shadeNo", v)}
                 type="text"
               />
-              <Field
-                label="Total Consumption"
-                value={inputs.totalConsumption}
-                onChange={(v) => set("totalConsumption", v)}
-              />
+              {/* Shade Name input field with custom sample placeholder to guide the user */}
               <Field
                 label="Shade Name"
                 value={inputs.shadeName}
                 onChange={(v) => set("shadeName", v)}
                 type="text"
+                placeholder="e.g. Natal Brown"
               />
+              {/* Party Name input field with custom sample placeholder to guide the user */}
               <Field
                 label="Party Name"
                 value={inputs.partyName}
                 onChange={(v) => set("partyName", v)}
                 type="text"
+                placeholder="e.g. Elite Bizens Algeria"
+              />
+              <Field
+                label="Total Consumption"
+                value={inputs.totalConsumption}
+                onChange={(v) => set("totalConsumption", v)}
               />
               <div className="col-span-2 grid grid-cols-2 gap-3">
                 <Field
@@ -1020,7 +1024,8 @@ function Field({
       ) : type === "text" ? (
         <Input
           type="text"
-          value={value}
+          // Prevent displaying 0, '0', null, or undefined to keep fields clean when empty or unset
+          value={value === 0 || value === "0" || value === null || value === undefined ? "" : value}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           placeholder={placeholder}
